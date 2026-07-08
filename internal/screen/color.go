@@ -4,18 +4,15 @@ import (
 	"image"
 
 	"github.com/Dasongzi1366/AutoGo/images"
-	"github.com/Dasongzi1366/AutoGo/ppocr"
 )
 
 type AndroidDetector struct {
 	displayId int
-	ocr       *ppocr.Ppocr
 }
 
 func NewAndroidDetector(displayId int) Detector {
 	return &AndroidDetector{
 		displayId: displayId,
-		ocr:       ppocr.New("v5"),
 	}
 }
 
