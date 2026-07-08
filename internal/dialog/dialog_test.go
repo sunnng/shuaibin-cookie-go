@@ -54,9 +54,30 @@ func TestIsVisibleStringWithoutDetector(t *testing.T) {
 
 func TestIsVisibleStringWithDetector(t *testing.T) {
 	d := New(Def{Name: "popup", Feature: "color"}, "guard")
-	d.detector = &mockDetector{match: true}
+	d.SetDetector(&mockDetector{match: true})
 	if !d.IsVisible() {
 		t.Fatal("expected visible when detector matches")
+	}
+}
+
+func TestSetDetector(t *testing.T) {
+	d := New(Def{Name: "popup", Feature: "color"}, "guard")
+
+	d.SetDetector(&mockDetector{match: true})
+	if !d.IsVisible() {
+		t.Fatal("expected visible after SetDetector with matching detector")
+	}
+
+	d.SetDetector(&mockDetector{match: false})
+	if d.IsVisible() {
+		t.Fatal("expected invisible after SetDetector with non-matching detector")
+	}
+}
+
+func TestIsVisibleUnsupportedFeature(t *testing.T) {
+	d := New(Def{Name: "popup", Feature: 123}, "guard")
+	if d.IsVisible() {
+		t.Fatal("expected invisible for unsupported feature type")
 	}
 }
 
