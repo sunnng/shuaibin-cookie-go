@@ -12,6 +12,10 @@ const (
 	LevelDebug = 4
 )
 
+// Logger is a placeholder type that satisfies references from packages that
+// expect an injectable logger instance (e.g. runtime.Options).
+type Logger struct{}
+
 var (
 	level int = LevelInfo
 	mu    sync.RWMutex
