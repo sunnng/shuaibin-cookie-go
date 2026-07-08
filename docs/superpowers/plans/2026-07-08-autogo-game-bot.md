@@ -530,23 +530,45 @@
 
 - [ ] **Step 4: Implement OCR wrapper**
 
-  Create `internal/screen/ocr.go`:
+  The `AutoGo/ppocr` package does not expose a standalone `Recognize(img)` function. The actual API is `ppocr.New(version)` followed by `(*Ppocr).OcrFromImage(img, colorStr)`. Create `internal/screen/ocr.go`:
   ```go
   package screen
 
   import (
+      "strings"
+
       "github.com/Dasongzi1366/AutoGo/images"
       "github.com/Dasongzi1366/AutoGo/ppocr"
   )
+
+  const ocrVersion = "v5"
 
   func (d *AndroidDetector) OCRText(region Region) string {
       img := images.CaptureScreen(region.X1, region.Y1, region.X2, region.Y2, d.displayId)
       if img == nil {
           return ""
       }
-      return ppocr.Recognize(img)
+      engine := ppocr.New(ocrVersion)
+      if engine == nil {
+          return ""
+      }
+      defer engine.Close()
+      results := engine.OcrFromImage(img, "")
+      if len(results) == 0 {
+          return ""
+      }
+      var sb strings.Builder
+      for i, r := range results {
+          if i > 0 {
+              sb.WriteByte('\n')
+          }
+          sb.WriteString(r.Label)
+      }
+      return sb.String()
   }
   ```
+
+  Keep `AndroidDetector` free of persistent OCR state; create the engine locally inside `OCRText`.
 
 - [ ] **Step 5: Verify compilation**
 
@@ -567,11 +589,13 @@
 **Files:**
 - Create: `internal/bot/config.go`
 - Create: `internal/bot/context.go`
+- Create: `internal/bot/state.go` (State interface only; Registry added in Task 7)
 
 **Interfaces:**
 - Produces: `type Config struct { TickIntervalMs int; MaxStateDurationSec int; MaxUnknownRetries int; MaxRecoveryAttempts int; LowPowerWaitSec int; Modules ModuleConfig }`.
 - Produces: `func LoadConfig(path string) (*Config, error)`.
-- Produces: `type Context struct { Config *Config; Log *utils.Logger; Detector screen.Detector; Executor action.Executor; Current State; LastState State; EnteredAt time.Time; RetryCount int; Screenshot *image.NRGBA }`.
+- Produces: `type Context struct { Config *Config; Detector screen.Detector; Executor action.Executor; Current State; LastState State; EnteredAt time.Time; RetryCount int; Screenshot *image.NRGBA }`.
+- Produces: `type State interface { Name() string; Detect(ctx *Context) bool; Act(ctx *Context) error; Next(ctx *Context) State; Recover(ctx *Context) error }`.
 
 - [ ] **Step 1: Implement Config**
 
@@ -662,16 +686,31 @@
   }
   ```
 
-- [ ] **Step 3: Verify compilation**
+- [ ] **Step 3: Implement State interface**
+
+  Create `internal/bot/state.go` with the State interface only (Registry will be added in Task 7):
+  ```go
+  package bot
+
+  type State interface {
+      Name() string
+      Detect(ctx *Context) bool
+      Act(ctx *Context) error
+      Next(ctx *Context) State
+      Recover(ctx *Context) error
+  }
+  ```
+
+- [ ] **Step 4: Verify compilation**
 
   Run: `go build ./internal/bot/...`
-  Expected: PASS.
+  Expected: PASS (may fail due to AutoGo/opencv CGO on Windows; if so, verify no errors in internal/bot itself).
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
   ```bash
-  git add internal/bot/config.go internal/bot/context.go
-  git commit -m "feat(bot): add config loader and runtime context"
+  git add internal/bot/
+  git commit -m "feat(bot): add config loader, state interface and runtime context"
   ```
 
 ---
@@ -679,15 +718,14 @@
 ### Task 7: State Interface and Registry
 
 **Files:**
-- Create: `internal/bot/state.go`
+- Modify: `internal/bot/state.go`
 
 **Interfaces:**
-- Produces: `type State interface { Name() string; Detect(ctx *Context) bool; Act(ctx *Context) error; Next(ctx *Context) State; Recover(ctx *Context) error }`.
-- Produces: `type Registry struct { states map[string]State }`, `func (r *Registry) Register(s State)`, `func (r *Registry) Find(ctx *Context) State`.
+- Produces: `type Registry struct { states []State }`, `func NewRegistry() *Registry`, `func (r *Registry) Register(s State)`, `func (r *Registry) Find(ctx *Context) State`.
 
-- [ ] **Step 1: Define State interface and Registry**
+- [ ] **Step 1: Add Registry to state.go**
 
-  Create `internal/bot/state.go`:
+  Modify `internal/bot/state.go` to add the Registry below the State interface:
   ```go
   package bot
 
