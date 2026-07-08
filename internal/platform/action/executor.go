@@ -11,7 +11,7 @@ type Executor interface {
 
 // Swipe is a placeholder for a swipe gesture definition.
 type Swipe struct {
-	From     Point
-	To       Point
+	From       Point
+	To         Point
 	DurationMs int
 }
