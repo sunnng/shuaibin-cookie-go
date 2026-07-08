@@ -55,3 +55,13 @@ func TestSchedulerIdleProvider(t *testing.T) {
 		t.Fatalf("unexpected wait=%v label=%s", wait, label)
 	}
 }
+
+func TestSchedulerMaxIdleWaitReturnsMaxProviderLabel(t *testing.T) {
+	s := New()
+	s.AddIdleProvider("expedition", func() (time.Duration, string) { return 10 * time.Second, "expedition 10s" })
+	s.AddIdleProvider("arena", func() (time.Duration, string) { return 30 * time.Second, "arena 30s" })
+	wait, label := s.MaxIdleWait()
+	if wait != 30*time.Second || label != "arena 30s" {
+		t.Fatalf("expected wait=30s label=arena 30s, got wait=%v label=%s", wait, label)
+	}
+}

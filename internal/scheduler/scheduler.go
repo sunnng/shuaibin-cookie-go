@@ -2,7 +2,7 @@ package scheduler
 
 import (
 	"fmt"
-	"strings"
+	"sort"
 	"time"
 
 	"app/internal/logger"
@@ -59,17 +59,20 @@ func (s *Scheduler) Run(stopOnError bool) (bool, error) {
 }
 
 func (s *Scheduler) MaxIdleWait() (time.Duration, string) {
+	names := make([]string, 0, len(s.idleProviders))
+	for name := range s.idleProviders {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
 	var maxWait time.Duration
-	var parts []string
-	for name, provider := range s.idleProviders {
-		wait, label := provider()
+	var maxLabel string
+	for _, name := range names {
+		wait, label := s.idleProviders[name]()
 		if wait > maxWait {
 			maxWait = wait
+			maxLabel = label
 		}
-		if label != "" {
-			parts = append(parts, label)
-		}
-		_ = name
 	}
-	return maxWait, strings.Join(parts, ", ")
+	return maxWait, maxLabel
 }
