@@ -8,3 +8,10 @@ type Executor interface {
 	Home() error
 	Sleep(ms int)
 }
+
+// Swipe is a placeholder for a swipe gesture definition.
+type Swipe struct {
+	From     Point
+	To       Point
+	Duration int
+}

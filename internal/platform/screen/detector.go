@@ -19,6 +19,12 @@ type Rect struct {
 	X1, Y1, X2, Y2 int
 }
 
+// FindDef is a placeholder for a color/image find definition.
+type FindDef struct{}
+
+// OCRCfg is a placeholder for OCR region and language configuration.
+type OCRCfg struct{}
+
 type Detector interface {
 	Capture() *image.NRGBA
 	MatchColor(x, y int, color string, sim float32) bool
