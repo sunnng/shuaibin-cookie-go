@@ -4,8 +4,8 @@ import (
 	"image"
 	"time"
 
-	"app/internal/platform/action"
 	"app/internal/config"
+	"app/internal/platform/action"
 	"app/internal/platform/screen"
 	"app/internal/utils"
 )

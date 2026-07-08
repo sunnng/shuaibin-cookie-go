@@ -48,6 +48,6 @@ func RestartSelf() {
 // 返回:
 //
 //	无返回值。
-func SetBootStart(enable bool){
+func SetBootStart(enable bool) {
 
 }

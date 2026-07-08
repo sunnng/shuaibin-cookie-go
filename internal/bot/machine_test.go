@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"app/internal/platform/action"
 	"app/internal/config"
+	"app/internal/platform/action"
 	"app/internal/platform/screen"
 )
 

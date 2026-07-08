@@ -9,11 +9,11 @@ func TestTaskBuilderConfigKey(t *testing.T) {
 	s := New()
 	ran := false
 	s.Build(TaskOpts{
-		Name:      "arena",
-		ConfigKey: "arena",
+		Name:         "arena",
+		ConfigKey:    "arena",
 		CheckEnabled: func() bool { return true },
-		CheckReady: func() (bool, time.Duration) { return true, 0 },
-		Action:    func() error { ran = true; return nil },
+		CheckReady:   func() (bool, time.Duration) { return true, 0 },
+		Action:       func() error { ran = true; return nil },
 	})
 	_, err := s.Run(false)
 	if err != nil {

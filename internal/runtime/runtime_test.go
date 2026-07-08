@@ -7,8 +7,8 @@ import (
 
 	"app/internal/guard"
 	"app/internal/hud"
-	"app/internal/scheduler"
 	"app/internal/platform/screen"
+	"app/internal/scheduler"
 )
 
 type mockDetector struct{}
