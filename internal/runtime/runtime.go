@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"sync"
 	"time"
 
 	"app/internal/guard"
@@ -28,8 +29,10 @@ type Runtime struct {
 	scheduler  *scheduler.Scheduler
 	guard      *guard.Guard
 	hud        *hud.HUD
+	logger     *logger.Logger
 	registerFn func()
 	stopCh     chan struct{}
+	stopOnce   sync.Once
 	cfg        RuntimeConfig
 }
 
@@ -48,6 +51,7 @@ func New(opts Options) *Runtime {
 		scheduler: opts.Scheduler,
 		guard:     opts.Guard,
 		hud:       opts.HUD,
+		logger:    opts.Logger,
 		cfg:       cfg,
 		stopCh:    make(chan struct{}),
 	}
@@ -58,7 +62,7 @@ func (r *Runtime) Register(fn func()) {
 }
 
 func (r *Runtime) Stop() {
-	close(r.stopCh)
+	r.stopOnce.Do(func() { close(r.stopCh) })
 }
 
 func (r *Runtime) Run() error {
@@ -73,20 +77,20 @@ func (r *Runtime) Run() error {
 		r.registerFn()
 	}
 
-	logger.Infof("[Runtime] start guardInterval=%v idleDelay=%v stepDelay=%v stopOnError=%v",
+	r.infof("[Runtime] start guardInterval=%v idleDelay=%v stepDelay=%v stopOnError=%v",
 		r.cfg.GuardInterval, r.cfg.IdleDelay, r.cfg.StepDelay, r.cfg.StopOnError)
 
 	round := 0
 	for {
 		select {
 		case <-r.stopCh:
-			logger.Infof("[Runtime] stopped")
+			r.infof("[Runtime] stopped")
 			return nil
 		default:
 		}
 
 		round++
-		logger.Debugf("[Runtime] round #%d", round)
+		r.debugf("[Runtime] round #%d", round)
 
 		if r.guard != nil {
 			r.guard.Check()
@@ -94,7 +98,7 @@ func (r *Runtime) Run() error {
 
 		hasWork, err := r.scheduler.Run(r.cfg.StopOnError)
 		if err != nil {
-			logger.Errorf("[Runtime] scheduler error: %v", err)
+			r.errorf("[Runtime] scheduler error: %v", err)
 			return err
 		}
 
@@ -104,25 +108,49 @@ func (r *Runtime) Run() error {
 				if r.hud != nil {
 					r.hud.SetWait(label)
 				}
-				logger.Infof("[Runtime] idle wait %v | %s", wait, label)
+				r.infof("[Runtime] idle wait %v | %s", wait, label)
 				r.sleepWithGuard(minDuration(wait, r.cfg.IdleDelay))
 			} else {
 				if r.hud != nil {
 					r.hud.SetIdle()
 				}
-				logger.Infof("[Runtime] idle sleep %v", r.cfg.IdleDelay)
+				r.infof("[Runtime] idle sleep %v", r.cfg.IdleDelay)
 				r.sleepWithGuard(r.cfg.IdleDelay)
 			}
 		} else {
-			logger.Debugf("[Runtime] step sleep %v", r.cfg.StepDelay)
+			r.debugf("[Runtime] step sleep %v", r.cfg.StepDelay)
 			r.sleepWithGuard(r.cfg.StepDelay)
 		}
 	}
 }
 
+func (r *Runtime) infof(format string, args ...any) {
+	if r.logger != nil {
+		r.logger.Infof(format, args...)
+	} else {
+		logger.Infof(format, args...)
+	}
+}
+
+func (r *Runtime) debugf(format string, args ...any) {
+	if r.logger != nil {
+		r.logger.Debugf(format, args...)
+	} else {
+		logger.Debugf(format, args...)
+	}
+}
+
+func (r *Runtime) errorf(format string, args ...any) {
+	if r.logger != nil {
+		r.logger.Errorf(format, args...)
+	} else {
+		logger.Errorf(format, args...)
+	}
+}
+
 func (r *Runtime) sleepWithGuard(d time.Duration) {
 	if r.guard != nil {
-		r.guard.Sleep(d)
+		r.guard.SleepWithInterval(d, r.cfg.GuardInterval)
 	} else {
 		time.Sleep(d)
 	}

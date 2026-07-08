@@ -56,9 +56,17 @@ func (g *Guard) Check() bool {
 
 // Sleep pauses for the requested duration, calling Check every 500ms so that
 // popup traps can be handled during the wait.
-func (g *Guard) Sleep(ms time.Duration) {
-	step := 500 * time.Millisecond
-	left := ms
+func (g *Guard) Sleep(d time.Duration) {
+	g.SleepWithInterval(d, 500*time.Millisecond)
+}
+
+// SleepWithInterval pauses for the requested duration, calling Check before each
+// step chunk so that popup traps can be handled during the wait.
+func (g *Guard) SleepWithInterval(d, step time.Duration) {
+	if step <= 0 {
+		step = 500 * time.Millisecond
+	}
+	left := d
 	for left > 0 {
 		g.Check()
 		chunk := step

@@ -12,8 +12,8 @@ const (
 	LevelDebug = 4
 )
 
-// Logger is a placeholder type that satisfies references from packages that
-// expect an injectable logger instance (e.g. runtime.Options).
+// Logger is an injectable logger instance. It delegates to the package-level
+// log helpers so callers can choose between package-level and instance-style logging.
 type Logger struct{}
 
 var (
@@ -44,3 +44,8 @@ func Errorf(format string, args ...any) { logf(LevelError, "ERROR", format, args
 func Warnf(format string, args ...any)  { logf(LevelWarn, "WARN", format, args...) }
 func Infof(format string, args ...any)  { logf(LevelInfo, "INFO", format, args...) }
 func Debugf(format string, args ...any) { logf(LevelDebug, "DEBUG", format, args...) }
+
+func (l *Logger) Errorf(format string, args ...any) { Errorf(format, args...) }
+func (l *Logger) Warnf(format string, args ...any)  { Warnf(format, args...) }
+func (l *Logger) Infof(format string, args ...any)  { Infof(format, args...) }
+func (l *Logger) Debugf(format string, args ...any) { Debugf(format, args...) }

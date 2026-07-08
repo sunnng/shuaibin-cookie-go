@@ -35,20 +35,18 @@ func TestRuntimeRegistersAndRunsOnce(t *testing.T) {
 		StopOnError:   false,
 	}})
 
-	registered := false
-	rt.Register(func() { registered = true })
+	registered := make(chan struct{})
+	rt.Register(func() {
+		close(registered)
+	})
 
-	// Run in background and stop after first tick
+	// Run in background and stop once registration has happened.
 	done := make(chan struct{})
 	go func() {
 		_ = rt.Run()
 		close(done)
 	}()
-	time.Sleep(100 * time.Millisecond)
+	<-registered
 	rt.Stop()
 	<-done
-
-	if !registered {
-		t.Fatal("register not called")
-	}
 }
