@@ -4,15 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an **AutoGo** Android automation project written in Go. AutoGo is a framework that compiles Go scripts into Android native binaries or APKs. The project currently targets Android only (`.vscode/settings.json` sets `AutoGo.targetPlatform: "android"`).
+This is an **AutoGo** Android automation project written in Go. AutoGo is a framework that compiles Go scripts into Android native binaries or APKs. The project targets Android only (`.vscode/settings.json` sets `AutoGo.targetPlatform: "android"`).
 
-The root Go module (`module app`) is the user script/project. It depends on the local AutoGo SDK via a `replace` directive in `go.mod`.
+The root Go module (`module app`) is the user script/project. It depends on the local AutoGo SDK via a `replace` directive in `go.mod`:
+
+```
+replace github.com/Dasongzi1366/AutoGo => ./AutoGo
+```
 
 ## Build & Run Workflow
 
-This project is **not built with standard `go build`**. The AutoGo SDK under `./AutoGo` contains stub declarations; the real runtime implementations are injected by the AutoGo runtime when the script is deployed to a device.
-
-Development is driven by the **AutoGo JetBrains plugin**:
+Real deployment is driven by the **AutoGo JetBrains plugin**:
 
 - Install the plugin in GoLand / IntelliJ IDEA.
 - Connect an Android device or emulator (`adb devices` must list it).
@@ -21,51 +23,60 @@ Development is driven by the **AutoGo JetBrains plugin**:
 
 The `resources/META-INF/Android.toml` file controls APK packaging options such as `appPackage`, `appName`, `autoRun`, and `showFloatingBall`.
 
-## Module Structure
+For local development on non-Android hosts, the project uses `//go:build android` tags:
+
+- Files that call AutoGo C/C++ bindings (OpenCV, screen capture, OCR) are Android-only.
+- `internal/screen/factory.go` and `internal/action/factory.go` provide no-op stubs on other platforms so the project still type-checks and tests can run.
+
+## Project Structure
 
 ```
 .
-├── go.mod              # Root module "app", replaces AutoGo to ./AutoGo
-├── AutoGo/             # Local AutoGo SDK (stub API surface)
-│   ├── app/            # Application / Intent APIs
-│   ├── device/         # Device info, battery, volume, display
-│   ├── files/          # File system helpers
-│   ├── images/         # Screenshot, color matching, image ops
-│   ├── motion/         # Touch, gestures, key events
-│   ├── uiacc/          # Android Accessibility node queries/actions
-│   ├── utils/          # Logging, shell, dialogs, conversions
-│   ├── opencv/         # OpenCV bindings
-│   ├── imgui/          # Immediate-mode UI drawing
-│   ├── console/        # Floating console window
-│   ├── hud/            # On-screen HUD
-│   ├── vdisplay/       # Virtual display
-│   ├── plugin/         # External Android plugin interop
-│   ├── rhino/          # JS engine integration
-│   ├── ppocr/          # PaddleOCR
-│   ├── yolo/           # YOLO object detection
-│   └── ...
-├── resources/          # Android packaging assets
-│   ├── META-INF/Android.toml
-│   ├── libs/           # Native libraries per ABI
-│   ├── assets/
-│   └── ui/index.html
-└── docs/               # AutoGo documentation export
+├── main.go                      # AutoGo entry point: load config, wire detector/executor/states, run machine
+├── config.json                  # User preferences (tick interval, modules, recovery limits)
+├── go.mod                       # Module "app", replaces AutoGo to ./AutoGo
+├── internal/
+│   ├── action/                  # Touch/gesture/navigate abstractions + coordinate scaling
+│   ├── bot/                     # Config, Context, State interface, Registry, Machine (state loop + watchdog)
+│   ├── bot/states/              # Concrete State implementations (home, battle, unknown)
+│   ├── screen/                  # Detector interface + Android wrappers for color/image/OCR
+│   └── utils/                   # Small logging helpers
+├── AutoGo/                      # Local AutoGo SDK (stub API surface)
+├── resources/                   # Android packaging assets
+└── docs/                        # AutoGo documentation export and design specs
 ```
 
 ## Key Architectural Notes
 
-- **Stub SDK**: Files under `AutoGo/` define the public API surface with no-op implementations. They exist so the project compiles in the IDE and provides autocomplete. Do not expect unit tests that exercise real Android behavior to pass locally.
-- **No `main.go` / no tests**: The project root currently has no Go source files and no `*_test.go` files. The plugin supplies the entry point and runtime when deploying.
-- **Target platform**: Android. Keep Android in mind when modifying code; iOS APIs are documented but not active in this workspace.
+- **State machine**: `internal/bot/machine.go` runs a loop of `Detect → Act → Transition`. It also handles watchdog timeouts and recovery when no state is detected.
+- **Interfaces for testability**: `screen.Detector` and `action.Executor` are interfaces. Unit tests in `internal/bot` mock them so the state machine can be tested without Android runtime.
+- **Coordinate scaling**: `internal/action/coord.go` scales 1600×900 base coordinates to the actual device resolution and bounds the result.
+- **Config**: `internal/bot/config.go` defines defaults; `config.json` overrides user preferences. Stable UI constants belong in state code, not JSON.
+- **Cross-platform compilation**: `go build ./...` and `go test ./...` work on Windows because platform-specific AutoGo calls are guarded by build tags or live in stub factories.
 
 ## Common Commands
 
-Because the SDK is stubbed, standard Go commands have limited usefulness here:
+```bash
+# Run all unit tests (works on Windows)
+go test ./...
 
-- `go test ./...` — reports no tests because none exist.
-- `go build ./...` — may fail for packages that depend on CGo or platform-specific symbols not present in this checkout; rely on the AutoGo plugin for real builds.
-- `go mod tidy` — safe to run when adding/removing dependencies.
+# Type-check / build all packages (works on Windows)
+go build ./...
+
+# Format all Go files
+gofmt -w .
+
+# Tidy modules after adding/removing dependencies
+go mod tidy
+```
+
+Do not expect real Android behavior from local tests; they validate the state machine, coordinate math, and wiring only.
 
 ## Documentation
 
-The full AutoGo API reference is in `docs/autogo-doc文档2026.6.6.md`. Consult it for function signatures, parameter formats (e.g., color strings like `"FFFFFF|CCCCCC-101010"`), and platform-specific behavior.
+- Full AutoGo API reference: `docs/autogo-doc文档2026.6.6.md`.
+- Design doc: `docs/superpowers/specs/2026-07-08-autogo-game-bot-design.md`.
+- Implementation plan: `docs/superpowers/plans/2026-07-08-autogo-game-bot.md`.
+- Progress ledger: `.superpowers/sdd/progress.md`.
+
+When adding a new game state, create a file under `internal/bot/states/`, implement `bot.State`, register it in `main.go`, and place it before the `unknown` fallback in the registry order.

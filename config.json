@@ -1,0 +1,12 @@
+{
+  "tickIntervalMs": 800,
+  "maxStateDurationSec": 45,
+  "maxUnknownRetries": 5,
+  "maxRecoveryAttempts": 3,
+  "lowPowerWaitSec": 30,
+  "modules": {
+    "collectResources": true,
+    "farmLevels": false,
+    "arena": false
+  }
+}
