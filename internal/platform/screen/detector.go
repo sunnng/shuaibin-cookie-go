@@ -11,6 +11,14 @@ type Region struct {
 	X1, Y1, X2, Y2 int
 }
 
+// Feature is a placeholder for a screen feature descriptor.
+type Feature struct{}
+
+// Rect is a placeholder rectangle for UI element bounds.
+type Rect struct {
+	X1, Y1, X2, Y2 int
+}
+
 type Detector interface {
 	Capture() *image.NRGBA
 	MatchColor(x, y int, color string, sim float32) bool
