@@ -76,17 +76,22 @@ func (m *Machine) Run(handlers map[string]Handler, runOpts RunOptions) error {
 		label = "statemachine"
 	}
 
+	if m.startTime.IsZero() {
+		return fmt.Errorf("statemachine [%s] not initialized", label)
+	}
+
 	logger.Infof("[StateMachine] [%s] start state=%s maxRetry=%d maxError=%d timeout=%v",
 		label, m.currentState, m.maxRetry, m.maxError, m.timeout)
 
 	for {
 		m.ticks++
-		if time.Since(m.startTime) > m.timeout {
+		if m.timeout > 0 && time.Since(m.startTime) > m.timeout {
 			return fmt.Errorf("statemachine [%s] timeout after %v", label, m.timeout)
 		}
 
-		if runOpts.Guard != nil {
-			runOpts.Guard()
+		if runOpts.Guard != nil && runOpts.Guard() {
+			time.Sleep(interval)
+			continue
 		}
 
 		handler, ok := handlers[m.currentState]
@@ -142,7 +147,9 @@ func (m *Machine) Run(handlers map[string]Handler, runOpts RunOptions) error {
 			deadline := time.Now().Add(sleep)
 			step := 500 * time.Millisecond
 			for time.Now().Before(deadline) {
-				runOpts.Guard()
+				if runOpts.Guard() {
+					break
+				}
 				remaining := time.Until(deadline)
 				if remaining <= 0 {
 					break
