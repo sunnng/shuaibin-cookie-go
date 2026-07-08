@@ -48,8 +48,11 @@ func (p *Page) ReadMedalAndTicket() (int, int, bool) {
 	if len(parts) < 2 {
 		return 0, 0, false
 	}
-	medal, _ := strconv.Atoi(parts[0])
-	ticket, _ := strconv.Atoi(parts[1])
+	medal, err1 := strconv.Atoi(parts[0])
+	ticket, err2 := strconv.Atoi(parts[1])
+	if err1 != nil || err2 != nil {
+		return 0, 0, false
+	}
 	return medal, ticket, true
 }
 

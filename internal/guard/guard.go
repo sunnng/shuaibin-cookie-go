@@ -86,6 +86,9 @@ func (g *Guard) SleepWithInterval(d, step time.Duration) {
 func (g *Guard) match(feature any) bool {
 	switch f := feature.(type) {
 	case string:
+		if g.detector == nil {
+			return false
+		}
 		return g.detector.MatchMultiColor(f, 0.9)
 	case func() bool:
 		return f()

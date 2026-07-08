@@ -26,7 +26,7 @@ The `resources/META-INF/Android.toml` file controls APK packaging options such a
 For local development on non-Android hosts, the project uses `//go:build android` tags:
 
 - Files that call AutoGo C/C++ bindings (OpenCV, screen capture, OCR) are Android-only.
-- `internal/screen/factory.go` and `internal/action/factory.go` provide no-op stubs on other platforms so the project still type-checks and tests can run.
+- `internal/platform/screen/factory.go` and `internal/platform/action/factory.go` provide no-op stubs on other platforms so the project still type-checks and tests can run.
 
 ## Project Structure
 
@@ -36,11 +36,20 @@ For local development on non-Android hosts, the project uses `//go:build android
 ├── config.json                  # User preferences (tick interval, modules, recovery limits)
 ├── go.mod                       # Module "app", replaces AutoGo to ./AutoGo
 ├── internal/
-│   ├── action/                  # Touch/gesture/navigate abstractions + coordinate scaling
-│   ├── bot/                     # Config, Context, State interface, Registry, Machine (state loop + watchdog)
-│   ├── bot/states/              # Concrete State implementations (home, battle, unknown)
-│   ├── screen/                  # Detector interface + Android wrappers for color/image/OCR
-│   └── utils/                   # Small logging helpers
+│   ├── config/                  # User config loader + static defaults
+│   ├── dialog/                  # Generic dialog detection and handling
+│   ├── game/                    # Game modules (arena, common/kingdom)
+│   ├── guard/                   # Popup/interrupt guard with priority traps
+│   ├── hud/                     # Status HUD backed by logger
+│   ├── logger/                  # Level-based logging
+│   ├── platform/
+│   │   ├── action/              # Touch/gesture/navigate abstractions + coordinate scaling
+│   │   └── screen/              # Detector interface + Android wrappers for color/image/OCR
+│   ├── runtime/                 # Main runtime loop: guard → scheduler → idle wait
+│   ├── scheduler/               # Task scheduler + TaskBuilder registration helper
+│   ├── statemachine/            # Reusable task-level state machine
+│   ├── store/                   # JSON file-backed key-value store
+│   └── utils/                   # Small logging helpers (legacy; prefer logger)
 ├── AutoGo/                      # Local AutoGo SDK (stub API surface)
 ├── resources/                   # Android packaging assets
 └── docs/                        # AutoGo documentation export and design specs
@@ -48,14 +57,17 @@ For local development on non-Android hosts, the project uses `//go:build android
 
 ## Key Architectural Notes
 
-- **State machine**: `internal/bot/machine.go` runs a loop of `Detect → Act → Transition`. It also handles watchdog timeouts and recovery when no state is detected.
-- **State interface and Registry**: both live in `internal/bot/state.go` (`registry.go` does not exist). Registration order matters because `Registry.Find` returns the first state whose `Detect` returns true.
-- **Interfaces for testability**: `screen.Detector` and `action.Executor` are interfaces. Unit tests in `internal/bot` mock them so the state machine can be tested without Android runtime.
+- **Runtime loop**: `internal/runtime/runtime.go` runs a forever loop of `guard.Check → scheduler.Run → idle wait`. It is the replacement for the old global `bot.Machine`.
+- **Task scheduling**: `internal/scheduler/scheduler.go` polls registered tasks by condition. `internal/scheduler/builder.go` provides `TaskOpts` for standard registration.
+- **Task-level state machines**: each game module (e.g. `internal/game/arena`) owns an `internal/statemachine.Machine` for its internal flow (`detect → navigate → sync → ...`).
+- **State interface and Registry**: the old `internal/bot` package has been removed. State logic now lives in module-specific packages under `internal/game`.
+- **Interfaces for testability**: `platform/screen.Detector` and `platform/action.Executor` are interfaces. Unit tests mock them so the scheduler, runtime, guard, and state machines can be tested without Android runtime.
 - **Cross-platform compilation**: `go build ./...` and `go test ./...` work on Windows because platform-specific AutoGo calls are guarded by build tags or live in stub factories.
-- **Build-tag split**: packages `screen` and `action` each have a `factory.go` with `//go:build !android` that returns stubs, and a `factory_android.go` with `//go:build android` that returns real `AndroidDetector` / `AndroidExecutor` implementations. The real implementations are split across files (e.g., `color.go`, `image.go`, `ocr.go`, `tap.go`, `navigate.go`) and are only compiled for Android.
-- **Coordinate scaling**: `internal/action/coord.go` scales 1600×900 base coordinates to the actual device resolution and bounds the result. `AndroidExecutor.Tap`/`Swipe` call `action.SafeTap` using the live display size.
-- **Config**: `internal/bot/config.go` defines defaults; `config.json` overrides user preferences. Missing `config.json` falls back to `DefaultConfig()`. Stable UI constants belong in state code, not JSON.
-- **Circular state references**: `Home` and `Battle` reference each other. Construct them with `nil` and break the cycle with `SetHome` in `main.go`.
+- **Build-tag split**: packages `platform/screen` and `platform/action` each have a `factory.go` with `//go:build !android` that returns stubs, and a `factory_android.go` with `//go:build android` that returns real `AndroidDetector` / `AndroidExecutor` implementations. The real implementations are split across files (e.g., `color.go`, `image.go`, `ocr.go`, `tap.go`, `navigate.go`) and are only compiled for Android.
+- **Coordinate scaling**: `internal/platform/action/coord.go` scales 1600×900 base coordinates to the actual device resolution and bounds the result. `AndroidExecutor.Tap`/`Swipe` call `action.SafeTap` using the live display size.
+- **Config**: `internal/config/static.go` defines defaults and `internal/config/user.go` loads `config.json`. Missing `config.json` falls back to `DefaultConfig()`. Stable UI constants belong in module code, not JSON.
+- **Guard**: `internal/guard/guard.go` registers popup traps by priority and provides segmented sleep that checks traps periodically.
+- **Store**: `internal/store/store.go` persists small JSON-backed state (e.g. arena next free refresh time).
 
 ## Common Commands
 
@@ -67,10 +79,10 @@ go test ./...
 go test ./... -v
 
 # Run a single test
-go test ./internal/bot -run TestMachineTransitions
+go test ./internal/statemachine -run TestMachineNextTransition
 
 # Run tests for one package
-go test ./internal/bot/...
+go test ./internal/game/arena/...
 
 # Type-check / build all packages (works on Windows)
 go build ./...
@@ -96,8 +108,8 @@ Do not expect real Android behavior from local tests; they validate the state ma
 ## Documentation
 
 - Full AutoGo API reference: `docs/autogo-doc文档2026.6.6.md`.
-- Design doc: `docs/superpowers/specs/2026-07-08-autogo-game-bot-design.md`.
-- Implementation plan: `docs/superpowers/plans/2026-07-08-autogo-game-bot.md`.
+- Design doc: `docs/superpowers/specs/2026-07-08-arena-module-design.md`.
+- Implementation plan: `docs/superpowers/plans/2026-07-08-arena-module.md`.
 - Progress ledger: `.superpowers/sdd/progress.md`.
 
-When adding a new game state, create a file under `internal/bot/states/`, implement `bot.State`, register it in `main.go`, and place it before the `unknown` fallback in the registry order.
+When adding a new game module, create a package under `internal/game/`, follow the `feature.go` / `page.go` / `route.go` / `session.go` / `task.go` / `statemachine.go` convention, register its task inside `runtime.Register` in `main.go`, and place it before any fallback task in scheduler order.

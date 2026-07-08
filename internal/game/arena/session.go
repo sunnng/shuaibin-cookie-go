@@ -1,6 +1,7 @@
 package arena
 
 import (
+	"fmt"
 	"time"
 
 	"app/internal/config"
@@ -42,8 +43,7 @@ func (s *Session) Describe() string {
 	if total > 0 {
 		rate = float64(s.Wins) / float64(total) * 100
 	}
-	_ = rate
-	return ""
+	return fmt.Sprintf("win rate: %.2f%% (%d/%d)", rate, s.Wins, total)
 }
 
 func (s *Session) SetNextFreeRefreshAt(at time.Time) {

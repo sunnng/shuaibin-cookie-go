@@ -8,7 +8,6 @@ import (
 
 type TaskOpts struct {
 	Name               string
-	ConfigKey          string
 	CheckEnabled       func() bool
 	CanResume          func() bool
 	CheckReady         func() (bool, time.Duration)

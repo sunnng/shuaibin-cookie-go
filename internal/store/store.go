@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"app/internal/logger"
 )
 
 type Store struct {
@@ -15,7 +17,9 @@ type Store struct {
 
 func New(path string) *Store {
 	s := &Store{path: path, data: make(map[string]any)}
-	_ = s.load()
+	if err := s.load(); err != nil {
+		logger.Errorf("[Store] failed to load %s: %v", path, err)
+	}
 	return s
 }
 

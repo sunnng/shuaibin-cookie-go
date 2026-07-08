@@ -54,28 +54,6 @@ func main() {
 		g,
 	)
 
-	sched.Build(scheduler.TaskOpts{
-		Name:      "王国竞技场",
-		ConfigKey: "arena",
-		CheckEnabled: func() bool {
-			return cfg.Modules.Arena.Enabled
-		},
-		CheckReady: func() (bool, time.Duration) {
-			if arenaSession.IsReachMaxBattles(&cfg.Modules.Arena) {
-				return false, 0
-			}
-			remain := arenaSession.TimeUntilRefresh()
-			if remain > 0 {
-				return false, remain
-			}
-			return true, 0
-		},
-		WaitHUD: func(remain time.Duration) string {
-			return "免费刷新等待"
-		},
-		Action: arenaTask.Run,
-	})
-
 	rt := runtime.New(runtime.Options{
 		Scheduler: sched,
 		Guard:     g,
@@ -86,6 +64,29 @@ func main() {
 			StepDelay:     5 * time.Second,
 			StopOnError:   false,
 		},
+	})
+
+	rt.Register(func() {
+		sched.Build(scheduler.TaskOpts{
+			Name: "王国竞技场",
+			CheckEnabled: func() bool {
+				return cfg.Modules.Arena.Enabled
+			},
+			CheckReady: func() (bool, time.Duration) {
+				if arenaSession.IsReachMaxBattles(&cfg.Modules.Arena) {
+					return false, 0
+				}
+				remain := arenaSession.TimeUntilRefresh()
+				if remain > 0 {
+					return false, remain
+				}
+				return true, 0
+			},
+			WaitHUD: func(remain time.Duration) string {
+				return "免费刷新等待"
+			},
+			Action: arenaTask.Run,
+		})
 	})
 
 	if err := rt.Run(); err != nil {
