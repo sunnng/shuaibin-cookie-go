@@ -24,18 +24,18 @@ type mockPage struct {
 	tapFreeRefreshCalls int
 }
 
-func (m *mockPage) IsLobby() bool                                 { return m.lobby }
-func (m *mockPage) WaitLobby(timeout time.Duration) bool          { return m.lobby }
-func (m *mockPage) ReadMedalAndTicket() (int, int, bool)          { return 0, m.tickets, true }
-func (m *mockPage) ReadTrophyCount() (int, bool)                  { return 1000, true }
+func (m *mockPage) IsLobby() bool                        { return m.lobby }
+func (m *mockPage) WaitLobby(timeout time.Duration) bool { return m.lobby }
+func (m *mockPage) ReadMedalAndTicket() (int, int, bool) { return 0, m.tickets, true }
+func (m *mockPage) ReadTrophyCount() (int, bool)         { return 1000, true }
 func (m *mockPage) FindFirstValidOpponent(cfg *config.Arena, myTrophy int) *OpponentInfo {
 	return m.opponent
 }
-func (m *mockPage) SwipePageLeft()                                { m.swipeCalls++ }
-func (m *mockPage) IsFreeRefresh() bool                           { return m.freeRefresh }
-func (m *mockPage) TapFreeRefresh()                               { m.tapFreeRefreshCalls++; m.freeRefresh = false }
-func (m *mockPage) ReadRefreshCountdown() (time.Duration, bool)   { return 0, false }
-func (m *mockPage) BuyTicket()                                    { m.buyTicketCalls++; m.tickets++ }
+func (m *mockPage) SwipePageLeft()                              { m.swipeCalls++ }
+func (m *mockPage) IsFreeRefresh() bool                         { return m.freeRefresh }
+func (m *mockPage) TapFreeRefresh()                             { m.tapFreeRefreshCalls++; m.freeRefresh = false }
+func (m *mockPage) ReadRefreshCountdown() (time.Duration, bool) { return 0, false }
+func (m *mockPage) BuyTicket()                                  { m.buyTicketCalls++; m.tickets++ }
 func (m *mockPage) RunBattle() (string, bool) {
 	m.runBattleCalls++
 	if m.tickets > 0 {
@@ -43,7 +43,7 @@ func (m *mockPage) RunBattle() (string, bool) {
 	}
 	return m.battleResult, m.battleOK
 }
-func (m *mockPage) TapToLobby() bool                              { return true }
+func (m *mockPage) TapToLobby() bool { return true }
 
 type mockRoute struct {
 	enterCalls int
