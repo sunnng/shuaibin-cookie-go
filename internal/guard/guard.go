@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"app/internal/logger"
-	"app/internal/screen"
+	"app/internal/platform/screen"
 )
 
 // Trap represents a popup or interrupt that the Guard should detect and handle.

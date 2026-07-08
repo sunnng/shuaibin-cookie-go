@@ -1,7 +1,7 @@
 package states
 
 import (
-	"app/internal/action"
+	"app/internal/platform/action"
 	"app/internal/bot"
 	"app/internal/utils"
 )

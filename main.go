@@ -3,11 +3,11 @@ package main
 import (
 	"time"
 
-	"app/internal/action"
+	"app/internal/platform/action"
 	"app/internal/bot"
 	"app/internal/bot/states"
 	"app/internal/config"
-	"app/internal/screen"
+	"app/internal/platform/screen"
 	"app/internal/utils"
 )
 

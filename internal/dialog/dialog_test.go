@@ -4,7 +4,7 @@ import (
 	"image"
 	"testing"
 
-	"app/internal/screen"
+	"app/internal/platform/screen"
 )
 
 type mockDetector struct {

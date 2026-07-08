@@ -3,7 +3,7 @@ package bot
 import (
 	"time"
 
-	"app/internal/action"
+	"app/internal/platform/action"
 	"app/internal/utils"
 )
 

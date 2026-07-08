@@ -3,7 +3,7 @@ package dialog
 import (
 	"time"
 
-	"app/internal/screen"
+	"app/internal/platform/screen"
 )
 
 // defaultMatchSim is the default similarity threshold used for string feature
