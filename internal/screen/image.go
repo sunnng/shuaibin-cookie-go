@@ -1,3 +1,5 @@
+//go:build android
+
 package screen
 
 import "github.com/Dasongzi1366/AutoGo/opencv"
