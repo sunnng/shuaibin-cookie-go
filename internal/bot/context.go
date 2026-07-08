@@ -9,14 +9,6 @@ import (
 	"app/internal/utils"
 )
 
-type State interface {
-	Name() string
-	Detect(ctx *Context) bool
-	Act(ctx *Context) error
-	Next(ctx *Context) State
-	Recover(ctx *Context) error
-}
-
 type Context struct {
 	Config     *Config
 	Detector   screen.Detector
