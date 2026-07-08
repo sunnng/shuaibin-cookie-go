@@ -13,5 +13,5 @@ type Executor interface {
 type Swipe struct {
 	From     Point
 	To       Point
-	Duration int
+	DurationMs int
 }
