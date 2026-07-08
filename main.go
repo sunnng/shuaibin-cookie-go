@@ -6,6 +6,7 @@ import (
 	"app/internal/action"
 	"app/internal/bot"
 	"app/internal/bot/states"
+	"app/internal/config"
 	"app/internal/screen"
 	"app/internal/utils"
 )
@@ -13,7 +14,7 @@ import (
 func main() {
 	utils.Infof("bot starting")
 
-	cfg, err := bot.LoadConfig("config.json")
+	cfg, err := config.LoadConfig("config.json")
 	if err != nil {
 		utils.Errorf("failed to load config: %v", err)
 		return

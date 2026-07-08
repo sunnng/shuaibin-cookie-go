@@ -5,12 +5,13 @@ import (
 	"time"
 
 	"app/internal/action"
+	"app/internal/config"
 	"app/internal/screen"
 	"app/internal/utils"
 )
 
 type Context struct {
-	Config     *Config
+	Config     *config.Config
 	Detector   screen.Detector
 	Executor   action.Executor
 	Current    State

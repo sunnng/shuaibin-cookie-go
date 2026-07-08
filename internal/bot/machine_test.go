@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"app/internal/action"
+	"app/internal/config"
 	"app/internal/screen"
 )
 
@@ -60,7 +61,7 @@ func TestMachineTransitions(t *testing.T) {
 	reg.Register(battle)
 
 	ctx := &Context{
-		Config:    DefaultConfig(),
+		Config:    config.DefaultConfig(),
 		Detector:  &mockDetector{},
 		Executor:  &mockExecutor{},
 		Current:   home,
@@ -83,7 +84,7 @@ func TestMachineStuckRecovery(t *testing.T) {
 	reg := NewRegistry()
 	reg.Register(state)
 
-	cfg := DefaultConfig()
+	cfg := config.DefaultConfig()
 	cfg.MaxStateDurationSec = 1
 
 	ctx := &Context{
@@ -106,7 +107,7 @@ func TestMachineUnknownRecovery(t *testing.T) {
 	state := &mockState{name: "lost", detect: false}
 	reg := NewRegistry()
 
-	cfg := DefaultConfig()
+	cfg := config.DefaultConfig()
 	cfg.MaxUnknownRetries = 1
 
 	ctx := &Context{
@@ -132,7 +133,7 @@ func TestMachineRegistryFindOnUnknown(t *testing.T) {
 	reg.Register(lost)
 	reg.Register(found)
 
-	cfg := DefaultConfig()
+	cfg := config.DefaultConfig()
 	cfg.MaxUnknownRetries = 1
 
 	ctx := &Context{
@@ -155,7 +156,7 @@ func TestMachineLowPowerWait(t *testing.T) {
 	state := &mockState{name: "lost", detect: false}
 	reg := NewRegistry()
 
-	cfg := DefaultConfig()
+	cfg := config.DefaultConfig()
 	cfg.MaxUnknownRetries = 1
 	cfg.MaxRecoveryAttempts = 1
 	cfg.LowPowerWaitSec = 7
@@ -188,7 +189,7 @@ func TestMachineLowPowerWait(t *testing.T) {
 func TestMachineUnknownNilCurrent(t *testing.T) {
 	reg := NewRegistry()
 
-	cfg := DefaultConfig()
+	cfg := config.DefaultConfig()
 	cfg.MaxUnknownRetries = 1
 
 	exec := &mockExecutor{}
@@ -214,7 +215,7 @@ func TestMachineFindFromNilCurrent(t *testing.T) {
 	reg.Register(found)
 
 	ctx := &Context{
-		Config:    DefaultConfig(),
+		Config:    config.DefaultConfig(),
 		Detector:  &mockDetector{},
 		Executor:  &mockExecutor{},
 		Current:   nil,

@@ -1,14 +1,16 @@
-package bot
+package config
 
-import (
-	"encoding/json"
-	"os"
-)
+type Arena struct {
+	Enabled      bool `json:"enabled"`
+	MaxBattles   *int `json:"maxBattles"`
+	AutoBuyCount int  `json:"autoBuyCount"`
+	TrophyDiff   int  `json:"trophyDiff"`
+}
 
 type ModuleConfig struct {
-	CollectResources bool `json:"collectResources"`
-	FarmLevels       bool `json:"farmLevels"`
-	Arena            bool `json:"arena"`
+	CollectResources bool  `json:"collectResources"`
+	FarmLevels       bool  `json:"farmLevels"`
+	Arena            Arena `json:"arena"`
 }
 
 type Config struct {
@@ -30,19 +32,11 @@ func DefaultConfig() *Config {
 		Modules: ModuleConfig{
 			CollectResources: true,
 			FarmLevels:       false,
-			Arena:            false,
+			Arena: Arena{
+				Enabled:      true,
+				AutoBuyCount: 0,
+				TrophyDiff:   0,
+			},
 		},
 	}
-}
-
-func LoadConfig(path string) (*Config, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return DefaultConfig(), nil
-	}
-	cfg := DefaultConfig()
-	if err := json.Unmarshal(data, cfg); err != nil {
-		return nil, err
-	}
-	return cfg, nil
 }
