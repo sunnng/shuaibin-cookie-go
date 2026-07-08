@@ -49,10 +49,13 @@ For local development on non-Android hosts, the project uses `//go:build android
 ## Key Architectural Notes
 
 - **State machine**: `internal/bot/machine.go` runs a loop of `Detect → Act → Transition`. It also handles watchdog timeouts and recovery when no state is detected.
+- **State interface and Registry**: both live in `internal/bot/state.go` (`registry.go` does not exist). Registration order matters because `Registry.Find` returns the first state whose `Detect` returns true.
 - **Interfaces for testability**: `screen.Detector` and `action.Executor` are interfaces. Unit tests in `internal/bot` mock them so the state machine can be tested without Android runtime.
-- **Coordinate scaling**: `internal/action/coord.go` scales 1600×900 base coordinates to the actual device resolution and bounds the result.
-- **Config**: `internal/bot/config.go` defines defaults; `config.json` overrides user preferences. Stable UI constants belong in state code, not JSON.
 - **Cross-platform compilation**: `go build ./...` and `go test ./...` work on Windows because platform-specific AutoGo calls are guarded by build tags or live in stub factories.
+- **Build-tag split**: packages `screen` and `action` each have a `factory.go` with `//go:build !android` that returns stubs, and a `factory_android.go` with `//go:build android` that returns real `AndroidDetector` / `AndroidExecutor` implementations. The real implementations are split across files (e.g., `color.go`, `image.go`, `ocr.go`, `tap.go`, `navigate.go`) and are only compiled for Android.
+- **Coordinate scaling**: `internal/action/coord.go` scales 1600×900 base coordinates to the actual device resolution and bounds the result. `AndroidExecutor.Tap`/`Swipe` call `action.SafeTap` using the live display size.
+- **Config**: `internal/bot/config.go` defines defaults; `config.json` overrides user preferences. Missing `config.json` falls back to `DefaultConfig()`. Stable UI constants belong in state code, not JSON.
+- **Circular state references**: `Home` and `Battle` reference each other. Construct them with `nil` and break the cycle with `SetHome` in `main.go`.
 
 ## Common Commands
 
@@ -60,11 +63,29 @@ For local development on non-Android hosts, the project uses `//go:build android
 # Run all unit tests (works on Windows)
 go test ./...
 
+# Run tests verbosely
+go test ./... -v
+
+# Run a single test
+go test ./internal/bot -run TestMachineTransitions
+
+# Run tests for one package
+go test ./internal/bot/...
+
 # Type-check / build all packages (works on Windows)
 go build ./...
 
+# Type-check with Android build tags (catches Android-only compilation issues)
+go build -tags android ./...
+
 # Format all Go files
 gofmt -w .
+
+# Check formatting without writing
+gofmt -l .
+
+# Run basic static analysis
+go vet ./...
 
 # Tidy modules after adding/removing dependencies
 go mod tidy
