@@ -7,17 +7,21 @@ import (
 
 	"app/internal/guard"
 	"app/internal/hud"
-	"app/internal/screen"
 	"app/internal/scheduler"
+	"app/internal/screen"
 )
 
 type mockDetector struct{}
 
-func (m *mockDetector) Capture() *image.NRGBA { return nil }
+func (m *mockDetector) Capture() *image.NRGBA                               { return nil }
 func (m *mockDetector) MatchColor(x, y int, color string, sim float32) bool { return false }
-func (m *mockDetector) FindColor(region screen.Region, color string, sim float32, dir int) (screen.Point, bool) { return screen.Point{}, false }
+func (m *mockDetector) FindColor(region screen.Region, color string, sim float32, dir int) (screen.Point, bool) {
+	return screen.Point{}, false
+}
 func (m *mockDetector) MatchMultiColor(colors string, sim float32) bool { return false }
-func (m *mockDetector) MatchImage(region screen.Region, template []byte, sim float32) (screen.Point, bool) { return screen.Point{}, false }
+func (m *mockDetector) MatchImage(region screen.Region, template []byte, sim float32) (screen.Point, bool) {
+	return screen.Point{}, false
+}
 func (m *mockDetector) OCRText(region screen.Region) string { return "" }
 
 func TestRuntimeRegistersAndRunsOnce(t *testing.T) {
