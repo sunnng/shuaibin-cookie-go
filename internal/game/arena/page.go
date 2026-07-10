@@ -43,7 +43,7 @@ func (p *Page) WaitLobby(timeout time.Duration) bool {
 }
 
 func (p *Page) ReadMedalAndTicket() (int, int, bool) {
-	text := p.detector.OCRText(p.feature.Lobby.MedalTicketOCR)
+	text := p.detector.OCRText(p.feature.Lobby.Reads.MedalTicket)
 	parts := strings.Fields(text)
 	if len(parts) < 2 {
 		return 0, 0, false
@@ -57,35 +57,35 @@ func (p *Page) ReadMedalAndTicket() (int, int, bool) {
 }
 
 func (p *Page) ReadTrophyCount() (int, bool) {
-	text := p.detector.OCRText(p.feature.Lobby.TrophyOCR)
+	text := p.detector.OCRText(p.feature.Lobby.Reads.Trophy)
 	n, err := strconv.Atoi(strings.TrimSpace(text))
 	return n, err == nil
 }
 
 func (p *Page) FindFirstValidOpponent(cfg *config.Arena, myTrophy int) *OpponentInfo {
-	// Placeholder: implement opponent scanning using feature.Opponent
+	// Placeholder: implement opponent scanning using feature.Lobby.Opponent
 	return nil
 }
 
 func (p *Page) SwipePageLeft() {
-	s := p.feature.Pagination.SwipeLeft
+	s := p.feature.Lobby.Gestures.SwipeLeft
 	_ = p.executor.Swipe(s.From, s.To, s.DurationMs)
 	p.executor.Sleep(1000)
 }
 
 func (p *Page) IsFreeRefresh() bool {
-	text := p.detector.OCRText(p.feature.Lobby.FreeRefreshOCR)
+	text := p.detector.OCRText(p.feature.Lobby.Reads.FreeRefresh)
 	return strings.TrimSpace(text) == "免费刷新"
 }
 
 func (p *Page) TapFreeRefresh() {
-	pt := p.feature.Lobby.FreeRefreshTap
+	pt := p.feature.Lobby.Actions.FreeRefresh
 	_ = p.executor.Tap(action.Point{X: pt.X, Y: pt.Y})
 	p.executor.Sleep(1000)
 }
 
 func (p *Page) ReadRefreshCountdown() (time.Duration, bool) {
-	text := p.detector.OCRText(p.feature.Lobby.RefreshOCR)
+	text := p.detector.OCRText(p.feature.Lobby.Reads.Refresh)
 	// Parse text like "5分30秒" or "30秒"
 	// Placeholder
 	_ = text
@@ -93,13 +93,13 @@ func (p *Page) ReadRefreshCountdown() (time.Duration, bool) {
 }
 
 func (p *Page) BuyTicket() {
-	btn := p.feature.Lobby.BuyTicketBtn
+	btn := p.feature.Lobby.Actions.BuyTicket
 	_ = p.executor.Tap(action.Point{X: btn.X, Y: btn.Y})
 	p.executor.Sleep(1500)
-	s := p.feature.Lobby.BuyTicketSlider
+	s := p.feature.Lobby.Actions.BuyTicketSlider
 	_ = p.executor.Swipe(s.From, s.To, s.DurationMs)
 	p.executor.Sleep(1000)
-	confirm := p.feature.Lobby.BuyTicketConfirm
+	confirm := p.feature.Lobby.Actions.BuyTicketConfirm
 	_ = p.executor.Tap(action.Point{X: confirm.X, Y: confirm.Y})
 }
 
