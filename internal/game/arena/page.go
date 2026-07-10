@@ -65,7 +65,27 @@ func (p *Page) ReadTrophyCount() (int, bool) {
 }
 
 func (p *Page) FindFirstValidOpponent(cfg *config.Arena, myTrophy int) *OpponentInfo {
-	// Placeholder: implement opponent scanning using feature.Lobby.Opponent
+	op := p.feature.Lobby.Opponent
+	anchors := p.detector.FindMultiColorsAll(op.Anchor.Region, op.Anchor.Colors, op.Anchor.Sim, op.Anchor.Dir)
+	lo, hi := myTrophy-cfg.TrophyDiff, myTrophy+cfg.TrophyDiff
+
+	for _, a := range anchors {
+		trophy, ok := readInt(p.detector.OCRText(offsetRegion(op.TrophyRect, a)))
+		if !ok {
+			continue // OCR 失败：跳过该锚点，不漏后面的卡
+		}
+		if battledAt(p.detector, offsetPoint(op.ResultOffset, a), op) {
+			continue // 已战：跳过
+		}
+		if trophy < lo || trophy > hi {
+			continue // 奖杯不在区间：跳过
+		}
+		return &OpponentInfo{
+			Site:      action.Point{X: a.X + op.ClickOffset.X, Y: a.Y + op.ClickOffset.Y},
+			Trophies:  trophy,
+			IsBattled: false,
+		}
+	}
 	return nil
 }
 
@@ -156,4 +176,21 @@ func parseCountdown(s string) (time.Duration, bool) {
 		return 0, false
 	}
 	return time.Duration(total) * time.Second, true
+}
+
+// battledAt 判断结果点 pt 是否显示已战标记色。
+// 命中 Win/Draw/Lose 任一 → 已战(true)。三色都不命中 → 未战(false)。
+// 注：Detector.MatchColor 只返 bool、无 error 通道，无法区分"未战中性态"与"比色异常"，
+// 因此"异常当已战"暂不实现；待 MatchColor 提供 error 通道再补保守分支。
+func battledAt(det screen.Detector, pt screen.Point, op OpponentFeature) bool {
+	if det.MatchColor(pt.X, pt.Y, op.ResultColors.Win, op.ResultSim) {
+		return true
+	}
+	if det.MatchColor(pt.X, pt.Y, op.ResultColors.Draw, op.ResultSim) {
+		return true
+	}
+	if det.MatchColor(pt.X, pt.Y, op.ResultColors.Lose, op.ResultSim) {
+		return true
+	}
+	return false
 }

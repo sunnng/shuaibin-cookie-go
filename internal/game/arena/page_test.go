@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"app/internal/config"
 	"app/internal/platform/action"
 	"app/internal/platform/screen"
 )
@@ -216,4 +217,129 @@ func TestSwipePageLeft(t *testing.T) {
 	if e.swipes[0][0] != (action.Point{X: 1400, Y: 450}) || e.swipes[0][1] != (action.Point{X: 200, Y: 450}) {
 		t.Fatalf("SwipePageLeft swipe endpoints = %v", e.swipes[0])
 	}
+}
+
+func newOpponentFeature() *Feature {
+	f := DefaultFeature()
+	op := &f.Lobby.Opponent
+	op.Anchor = ColorFind{Region: screen.Region{X1: 0, Y1: 0, X2: 1600, Y2: 900}, Colors: "anchor", Sim: 0.95, Dir: 0}
+	op.TrophyRect = screen.Region{X1: -10, Y1: -20, X2: 10, Y2: 20} // 相对锚点偏移
+	op.ResultOffset = screen.Point{X: 30, Y: 0}
+	op.ResultColors = ResultColors{Win: "w", Draw: "d", Lose: "l"}
+	op.ResultSim = 0.9
+	op.ClickOffset = screen.Point{X: 5, Y: 5}
+	return f
+}
+
+func key(r screen.Region) string { return fmt.Sprintf("%d,%d,%d,%d", r.X1, r.Y1, r.X2, r.Y2) }
+
+func TestFindFirstValidOpponent(t *testing.T) {
+	cfg := &config.Arena{TrophyDiff: 50} // 区间 [950,1050] 当 myTrophy=1000
+
+	t.Run("in-range hit returns first with offset Site", func(t *testing.T) {
+		d := &mockDetector{
+			anchors: []screen.Point{{X: 100, Y: 200}, {X: 100, Y: 400}},
+			ocrByKey: map[string]string{
+				key(screen.Region{X1: 90, Y1: 180, X2: 110, Y2: 220}): "1050", // anchor1 奖杯，区间内
+			},
+			matchByKey: map[string]bool{}, // 三色都不命中 → 未战
+		}
+		p := NewPage(d, &mockExecutor{}, newOpponentFeature())
+		got := p.FindFirstValidOpponent(cfg, 1000)
+		if got == nil {
+			t.Fatal("want a valid opponent, got nil")
+		}
+		if got.Site != (action.Point{X: 105, Y: 205}) { // anchor(100,200)+ClickOffset(5,5)
+			t.Errorf("Site = %+v, want (105,205)", got.Site)
+		}
+		if got.Trophies != 1050 || got.IsBattled {
+			t.Errorf("Trophies/IsBattled = %d/%v, want 1050/false", got.Trophies, got.IsBattled)
+		}
+	})
+
+	t.Run("battled card is skipped", func(t *testing.T) {
+		d := &mockDetector{
+			anchors: []screen.Point{{X: 100, Y: 200}, {X: 100, Y: 400}},
+			ocrByKey: map[string]string{
+				key(screen.Region{X1: 90, Y1: 180, X2: 110, Y2: 220}): "1000", // anchor1 区间内但已战
+				key(screen.Region{X1: 90, Y1: 380, X2: 110, Y2: 420}): "1020", // anchor2 区间内未战
+			},
+			matchByKey: map[string]bool{
+				"130,200,w": true, // anchor1 ResultOffset(100+30,200) 命中 Win → 已战
+			},
+		}
+		p := NewPage(d, &mockExecutor{}, newOpponentFeature())
+		got := p.FindFirstValidOpponent(cfg, 1000)
+		if got == nil || got.Trophies != 1020 {
+			t.Fatalf("want anchor2 (1020), got %+v", got)
+		}
+	})
+
+	t.Run("out-of-range is skipped", func(t *testing.T) {
+		d := &mockDetector{
+			anchors:  []screen.Point{{X: 100, Y: 200}},
+			ocrByKey: map[string]string{key(screen.Region{X1: 90, Y1: 180, X2: 110, Y2: 220}): "2000"}, // >1050
+		}
+		p := NewPage(d, &mockExecutor{}, newOpponentFeature())
+		if got := p.FindFirstValidOpponent(cfg, 1000); got != nil {
+			t.Fatalf("out-of-range should yield nil, got %+v", got)
+		}
+	})
+
+	t.Run("no anchors returns nil", func(t *testing.T) {
+		d := &mockDetector{anchors: nil}
+		p := NewPage(d, &mockExecutor{}, newOpponentFeature())
+		if got := p.FindFirstValidOpponent(cfg, 1000); got != nil {
+			t.Fatalf("no anchors should yield nil, got %+v", got)
+		}
+	})
+
+	t.Run("OCR failure skips that anchor", func(t *testing.T) {
+		d := &mockDetector{
+			anchors: []screen.Point{{X: 100, Y: 200}, {X: 100, Y: 400}},
+			ocrByKey: map[string]string{
+				key(screen.Region{X1: 90, Y1: 180, X2: 110, Y2: 220}): "abc",  // OCR 失败 → 跳过
+				key(screen.Region{X1: 90, Y1: 380, X2: 110, Y2: 420}): "1010", // 区间内未战
+			},
+			matchByKey: map[string]bool{},
+		}
+		p := NewPage(d, &mockExecutor{}, newOpponentFeature())
+		got := p.FindFirstValidOpponent(cfg, 1000)
+		if got == nil || got.Trophies != 1010 {
+			t.Fatalf("want anchor2 (1010), got %+v", got)
+		}
+	})
+
+	t.Run("first in-range wins by anchor order", func(t *testing.T) {
+		d := &mockDetector{
+			anchors: []screen.Point{{X: 100, Y: 200}, {X: 100, Y: 400}}, // dir=0 已按 Y 排
+			ocrByKey: map[string]string{
+				key(screen.Region{X1: 90, Y1: 180, X2: 110, Y2: 220}): "960",  // 区间内（第一个）
+				key(screen.Region{X1: 90, Y1: 380, X2: 110, Y2: 420}): "1040", // 也在区间内但应被前者抢先
+			},
+			matchByKey: map[string]bool{},
+		}
+		p := NewPage(d, &mockExecutor{}, newOpponentFeature())
+		got := p.FindFirstValidOpponent(cfg, 1000)
+		if got == nil || got.Trophies != 960 {
+			t.Fatalf("want first anchor (960), got %+v", got)
+		}
+	})
+
+	t.Run("zero diff means strict equality", func(t *testing.T) {
+		eq := &config.Arena{TrophyDiff: 0} // 只接受奖杯==myTrophy
+		d := &mockDetector{
+			anchors: []screen.Point{{X: 100, Y: 200}, {X: 100, Y: 400}},
+			ocrByKey: map[string]string{
+				key(screen.Region{X1: 90, Y1: 180, X2: 110, Y2: 220}): "999",  // 不等 → 跳
+				key(screen.Region{X1: 90, Y1: 380, X2: 110, Y2: 420}): "1000", // 严格相等 → 中
+			},
+			matchByKey: map[string]bool{},
+		}
+		p := NewPage(d, &mockExecutor{}, newOpponentFeature())
+		got := p.FindFirstValidOpponent(eq, 1000)
+		if got == nil || got.Trophies != 1000 {
+			t.Fatalf("diff=0 should only match exact trophy, got %+v", got)
+		}
+	})
 }
