@@ -29,7 +29,8 @@ func NewPage(det screen.Detector, exec action.Executor, f *Feature) *Page {
 }
 
 func (p *Page) IsLobby() bool {
-	return p.detector.MatchMultiColor("", 0.95) // use feature
+	id := p.feature.Lobby.Identify
+	return p.detector.MatchMultiColor(id.Colors, id.Sim)
 }
 
 func (p *Page) WaitLobby(timeout time.Duration) bool {
@@ -86,11 +87,8 @@ func (p *Page) TapFreeRefresh() {
 }
 
 func (p *Page) ReadRefreshCountdown() (time.Duration, bool) {
-	text := p.detector.OCRText(p.feature.Lobby.Reads.Refresh)
-	// Parse text like "5分30秒" or "30秒"
-	// Placeholder
-	_ = text
-	return 0, false
+	text := strings.TrimSpace(p.detector.OCRText(p.feature.Lobby.Reads.Refresh))
+	return parseCountdown(text)
 }
 
 func (p *Page) BuyTicket() {
