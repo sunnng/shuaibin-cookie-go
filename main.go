@@ -1,24 +1,25 @@
 package main
 
 import (
+	"os"
 	"time"
 
 	"app/internal/config"
 	"app/internal/game/arena"
 	"app/internal/game/common/kingdom"
 	"app/internal/guard"
-	"app/internal/hud"
 	"app/internal/logger"
 	"app/internal/platform/action"
 	"app/internal/platform/screen"
 	"app/internal/runtime"
 	"app/internal/scheduler"
 	"app/internal/store"
+	"app/internal/ui"
 )
 
 func main() {
 	logger.SetLevel(logger.LevelInfo)
-	logger.Infof("bot starting")
+	logger.Infof("superbin cookie run kingdom start...")
 
 	cfg, err := config.LoadConfig("config.json")
 	if err != nil {
@@ -26,38 +27,76 @@ func main() {
 		return
 	}
 
+	uiStore := ui.NewStore()
+	ui.SeedFromConfig(uiStore, cfg)
+
+	ctrl := ui.NewSessionController(ui.SessionHooks{
+		OnStart: func() (run func() error, pause, resume, stop func()) {
+			ui.ApplyToConfig(uiStore, cfg)
+			rt := buildRuntime(cfg)
+			return func() error {
+					err := rt.Run()
+					return err
+				},
+				rt.Pause,
+				rt.Resume,
+				rt.Stop
+		},
+		OnExit: func() {
+			time.Sleep(500 * time.Millisecond)
+			os.Exit(0)
+		},
+	})
+
+	ui.RunShell(ui.ShellOptions{
+		Title:            "Superbin Cookie",
+		ConfigPath:       "/sdcard/shuaibin-cookie/ui.json",
+		Store:            uiStore,
+		Controller:       ctrl,
+		OpenPanelOnStart: true,
+	})
+}
+
+func buildRuntime(cfg *config.Config) *runtime.Runtime {
 	det := screen.NewDetector(0)
 	exec := action.NewExecutor(0)
-
 	s := store.New("data/store.json")
-	h := hud.New()
 	g := guard.New(det)
 	sched := scheduler.New()
 
-	// Register global guard traps here if needed
-
-	// Common kingdom
 	kingdomFeature := kingdom.DefaultFeature()
 	kingdomPage := kingdom.NewPage(det, exec, kingdomFeature)
-
-	// Arena
 	arenaFeature := arena.DefaultFeature()
 	arenaSession := arena.NewSession(s)
 	arenaTask := arena.NewTask(
 		&cfg.Modules.Arena,
-		det,
-		exec,
-		arenaFeature,
-		kingdomPage,
-		kingdomFeature,
-		arenaSession,
-		g,
+		det, exec, arenaFeature, kingdomPage, arenaSession, g,
 	)
 
-	rt := runtime.New(runtime.Options{
+	sched.Build(scheduler.TaskOpts{
+		Name: "王国竞技场",
+		CheckEnabled: func() bool {
+			return cfg.Modules.Arena.Enabled
+		},
+		CheckReady: func() (bool, time.Duration) {
+			if arenaSession.IsReachMaxBattles(&cfg.Modules.Arena) {
+				return false, 0
+			}
+			remain := arenaSession.TimeUntilRefresh()
+			if remain > 0 {
+				return false, remain
+			}
+			return true, 0
+		},
+		WaitHUD: func(remain time.Duration) string {
+			return "免费刷新等待"
+		},
+		Action: arenaTask.Run,
+	})
+
+	return runtime.New(runtime.Options{
 		Scheduler: sched,
 		Guard:     g,
-		HUD:       h,
 		RuntimeCfg: runtime.RuntimeConfig{
 			GuardInterval: 500 * time.Millisecond,
 			IdleDelay:     30 * time.Second,
@@ -65,31 +104,4 @@ func main() {
 			StopOnError:   false,
 		},
 	})
-
-	rt.Register(func() {
-		sched.Build(scheduler.TaskOpts{
-			Name: "王国竞技场",
-			CheckEnabled: func() bool {
-				return cfg.Modules.Arena.Enabled
-			},
-			CheckReady: func() (bool, time.Duration) {
-				if arenaSession.IsReachMaxBattles(&cfg.Modules.Arena) {
-					return false, 0
-				}
-				remain := arenaSession.TimeUntilRefresh()
-				if remain > 0 {
-					return false, remain
-				}
-				return true, 0
-			},
-			WaitHUD: func(remain time.Duration) string {
-				return "免费刷新等待"
-			},
-			Action: arenaTask.Run,
-		})
-	})
-
-	if err := rt.Run(); err != nil {
-		logger.Errorf("runtime stopped: %v", err)
-	}
 }
