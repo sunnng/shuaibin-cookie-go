@@ -21,6 +21,9 @@ func (m *mockDetector) FindColor(region screen.Region, color string, sim float32
 	return screen.Point{}, false
 }
 func (m *mockDetector) MatchMultiColor(colors string, sim float32) bool { return m.match }
+func (m *mockDetector) FindMultiColorsAll(region screen.Region, colors string, sim float32, dir int) []screen.Point {
+	return nil
+}
 func (m *mockDetector) MatchImage(region screen.Region, template []byte, sim float32) (screen.Point, bool) {
 	return screen.Point{}, false
 }

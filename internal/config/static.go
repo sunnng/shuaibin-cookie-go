@@ -4,34 +4,22 @@ type Arena struct {
 	Enabled      bool `json:"enabled"`
 	MaxBattles   *int `json:"maxBattles"`
 	AutoBuyCount int  `json:"autoBuyCount"`
+	// TrophyDiff：选对手奖杯区间半宽。只打奖杯在 [myTrophy-TrophyDiff, myTrophy+TrophyDiff] 内的对手。
+	// 注意：0 表示"严格相等"（只打奖杯完全等于自己的对手），不是"不过滤"。
 	TrophyDiff   int  `json:"trophyDiff"`
 }
 
 type ModuleConfig struct {
-	CollectResources bool  `json:"collectResources"`
-	FarmLevels       bool  `json:"farmLevels"`
-	Arena            Arena `json:"arena"`
+	Arena Arena `json:"arena"`
 }
 
 type Config struct {
-	TickIntervalMs      int          `json:"tickIntervalMs"`
-	MaxStateDurationSec int          `json:"maxStateDurationSec"`
-	MaxUnknownRetries   int          `json:"maxUnknownRetries"`
-	MaxRecoveryAttempts int          `json:"maxRecoveryAttempts"`
-	LowPowerWaitSec     int          `json:"lowPowerWaitSec"`
-	Modules             ModuleConfig `json:"modules"`
+	Modules ModuleConfig `json:"modules"`
 }
 
 func DefaultConfig() *Config {
 	return &Config{
-		TickIntervalMs:      800,
-		MaxStateDurationSec: 45,
-		MaxUnknownRetries:   5,
-		MaxRecoveryAttempts: 3,
-		LowPowerWaitSec:     30,
 		Modules: ModuleConfig{
-			CollectResources: true,
-			FarmLevels:       false,
 			Arena: Arena{
 				Enabled:      true,
 				AutoBuyCount: 0,

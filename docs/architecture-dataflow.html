@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Superbin Cookie · 运行时数据流架构图</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js" integrity="sha384-en/ztfPSRkGfME4KIm05joYXynqzUgbsG5nMrj/xEFAHXkeZfO3yMK8QQ+mP7p1/" crossorigin="anonymous"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background: #020617;
+      min-height: 100vh;
+      padding: 2rem;
+      color: white;
+    }
+    .container { max-width: 1240px; margin: 0 auto; }
+    .header { margin-bottom: 2rem; }
+    .header-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+    .pulse-dot {
+      width: 12px; height: 12px; background: #22d3ee; border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em; }
+    .subtitle { color: #94a3b8; font-size: 0.875rem; margin-left: 1.75rem; }
+    .diagram-container {
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 1rem; border: 1px solid #1e293b;
+      padding: 1.5rem; overflow-x: auto;
+    }
+    svg { width: 100%; min-width: 1080px; display: block; }
+    .cards {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem; margin-top: 2rem;
+    }
+    .card {
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 0.75rem; border: 1px solid #1e293b; padding: 1.25rem;
+    }
+    .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .card-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .card-dot.cyan { background: #22d3ee; }
+    .card-dot.emerald { background: #34d399; }
+    .card-dot.violet { background: #a78bfa; }
+    .card-dot.amber { background: #fbbf24; }
+    .card-dot.rose { background: #fb7185; }
+    .card h3 { font-size: 0.875rem; font-weight: 600; }
+    .card ul { list-style: none; color: #94a3b8; font-size: 0.75rem; }
+    .card li { margin-bottom: 0.375rem; }
+    .footer { text-align: center; margin-top: 1.5rem; color: #475569; font-size: 0.75rem; }
+    .toolbar { display: flex; gap: 0.5rem; margin-left: auto; flex-shrink: 0; align-items: center; }
+    .toolbar-toggle {
+      background: transparent; border: none; color: #475569; cursor: pointer;
+      font-size: 1.25rem; line-height: 1; padding: 0.25rem 0.5rem; border-radius: 0.375rem;
+      transition: color 0.2s, background 0.2s;
+    }
+    .toolbar-toggle:hover { color: #94a3b8; background: rgba(30, 41, 59, 0.5); }
+    .toolbar-actions { display: none; gap: 0.5rem; }
+    .toolbar.expanded .toolbar-actions { display: flex; }
+    .toolbar-actions button {
+      background: rgba(30, 41, 59, 0.8); border: 1px solid #334155; color: #94a3b8;
+      padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-family: inherit;
+      font-size: 0.75rem; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .toolbar-actions button:hover { background: rgba(51, 65, 85, 0.8); color: white; border-color: #475569; }
+    @media print {
+      body { background: #020617; padding: 1rem; }
+      .toolbar { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="report-container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>Superbin Cookie · 运行时数据流</h1>
+        <div class="toolbar">
+          <div class="toolbar-actions">
+            <button onclick="copyAsImage(this)">📋 Copy</button>
+            <button onclick="downloadPNG(this)">🖼️ PNG</button>
+            <button onclick="downloadPDF(this)">📄 PDF</button>
+          </div>
+          <button class="toolbar-toggle" onclick="this.parentElement.classList.toggle('expanded')" title="Export options" aria-label="Export options">⋯</button>
+        </div>
+      </div>
+      <p class="subtitle">main.runBot 装配 → runtime 主循环 → scheduler 选中 → arena 状态机 → idle 回环（基于 internal/* 源码走读）</p>
+    </div>
+
+    <!-- Main Diagram -->
+    <div class="diagram-container">
+      <svg viewBox="0 0 1240 915">
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+          </marker>
+          <marker id="arrow-cyan" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee" />
+          </marker>
+          <marker id="arrow-rose" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#fb7185" />
+          </marker>
+          <marker id="arrow-amber" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#fbbf24" />
+          </marker>
+          <marker id="arrow-em" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#34d399" />
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        <!-- ============================================================= -->
+        <!-- ARROWS (drawn first = bottom z-order)                          -->
+        <!-- ============================================================= -->
+
+        <!-- Band A: main -> base -> modules -->
+        <line x1="190" y1="105" x2="228" y2="105" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrow-cyan)"/>
+        <line x1="660" y1="105" x2="698" y2="105" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arrow-cyan)"/>
+        <line x1="870" y1="105" x2="888" y2="105" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-em)"/>
+        <!-- kingdom -> arena (reuse) -->
+        <path d="M 795 130 L 795 150 L 965 150 L 965 132" fill="none" stroke="#34d399" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrow-em)"/>
+        <text x="880" y="162" fill="#34d399" font-size="7" text-anchor="middle">复用 kingdom.Page</text>
+
+        <!-- Band A -> Band B: boot the loop -->
+        <line x1="620" y1="170" x2="620" y2="184" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrow-amber)"/>
+        <text x="706" y="180" fill="#fbbf24" font-size="8">sched.Build 注册 → rt.Run() 启动</text>
+
+        <!-- Band B: main loop pipeline -->
+        <line x1="170" y1="330" x2="198" y2="330" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <line x1="330" y1="330" x2="358" y2="330" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arrow-rose)"/>
+        <line x1="510" y1="330" x2="553" y2="330" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-em)"/>
+        <line x1="647" y1="330" x2="698" y2="330" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-em)"/>
+        <text x="672" y="324" fill="#34d399" font-size="8">是</text>
+        <line x1="600" y1="367" x2="600" y2="403" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrow-amber)"/>
+        <text x="612" y="390" fill="#fbbf24" font-size="8">否</text>
+        <!-- idle loopback: MaxIdleWait -> stop -->
+        <path d="M 515 428 L 110 428 L 110 360" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arrowhead)"/>
+        <text x="300" y="422" fill="#94a3b8" font-size="8">round++ · 下一轮</text>
+        <!-- Action -> state machine (cross band) -->
+        <path d="M 785 360 L 785 505 L 120 505 L 120 523" fill="none" stroke="#34d399" stroke-width="1.6" marker-end="url(#arrow-em)"/>
+        <text x="452" y="500" fill="#34d399" font-size="8">Init(&quot;detect&quot;) → sm.Run(handlers) 进入状态机</text>
+
+        <!-- Band C: state machine main ring -->
+        <line x1="180" y1="550" x2="208" y2="550" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-em)"/>
+        <line x1="330" y1="550" x2="358" y2="550" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-em)"/>
+        <line x1="480" y1="550" x2="508" y2="550" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-em)"/>
+        <line x1="630" y1="550" x2="658" y2="550" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-em)"/>
+        <line x1="780" y1="550" x2="808" y2="550" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-em)"/>
+        <line x1="930" y1="550" x2="958" y2="550" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-em)"/>
+        <!-- battle -> sync main loopback -->
+        <path d="M 1020 525 L 1020 472 L 420 472 L 420 523" fill="none" stroke="#22d3ee" stroke-width="1.6" marker-end="url(#arrow-cyan)"/>
+        <text x="720" y="466" fill="#22d3ee" font-size="8">Next(&quot;sync&quot;) · 战斗后回同步（主循环）</text>
+        <!-- check -> buyTicket -->
+        <path d="M 540 575 L 540 600 L 400 600 L 400 653" fill="none" stroke="#fbbf24" stroke-width="1.4" marker-end="url(#arrow-amber)"/>
+        <!-- buyTicket -> sync -->
+        <path d="M 470 653 L 470 575" fill="none" stroke="#22d3ee" stroke-width="1.4" marker-end="url(#arrow-cyan)"/>
+        <!-- check -> leave -->
+        <path d="M 620 575 L 620 678 L 810 678" fill="none" stroke="#94a3b8" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <!-- selectOpponent -> leave (no opponent) dashed rose -->
+        <path d="M 720 575 L 720 640 L 870 640 L 870 653" fill="none" stroke="#fb7185" stroke-width="1.4" stroke-dasharray="5,3" marker-end="url(#arrow-rose)"/>
+        <!-- leave -> Done -->
+        <line x1="930" y1="678" x2="958" y2="678" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrow-em)"/>
+        <!-- selectOpponent free-refresh self loop -->
+        <path d="M 778 535 C 812 518 812 562 778 548" fill="none" stroke="#fbbf24" stroke-width="1.2" marker-end="url(#arrow-amber)"/>
+        <text x="824" y="538" fill="#fbbf24" font-size="7">免费刷新</text>
+
+        <!-- state result labels on edges -->
+        <text x="244" y="544" fill="#60a5fa" font-size="7">Next</text>
+        <text x="394" y="544" fill="#60a5fa" font-size="7">Next</text>
+        <text x="544" y="544" fill="#60a5fa" font-size="7">Next</text>
+        <text x="694" y="544" fill="#60a5fa" font-size="7">Next</text>
+        <text x="844" y="544" fill="#60a5fa" font-size="7">Next</text>
+        <text x="948" y="544" fill="#60a5fa" font-size="7">Next</text>
+        <text x="552" y="596" fill="#fbbf24" font-size="7">买票</text>
+        <text x="460" y="620" fill="#22d3ee" font-size="7">Next(sync)</text>
+        <text x="700" y="672" fill="#94a3b8" font-size="7">达上限/无票→leave</text>
+        <text x="792" y="636" fill="#fb7185" font-size="7">找不到对手</text>
+
+        <!-- ============================================================= -->
+        <!-- REGION BOUNDARIES                                             -->
+        <!-- ============================================================= -->
+        <rect x="20" y="20" width="1200" height="150" rx="12" fill="rgba(251, 191, 36, 0.04)" stroke="#fbbf24" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="36" y="40" fill="#fbbf24" font-size="10" font-weight="600">① 装配期 · main.runBot — 依赖注入（一次性）</text>
+
+        <rect x="20" y="185" width="1200" height="275" rx="12" fill="rgba(6, 78, 59, 0.05)" stroke="#34d399" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="36" y="205" fill="#34d399" font-size="10" font-weight="600">② 运行期 · runtime.Run — 主循环 for { }</text>
+
+        <rect x="20" y="470" width="1200" height="330" rx="12" fill="rgba(6, 78, 59, 0.05)" stroke="#34d399" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="36" y="490" fill="#34d399" font-size="10" font-weight="600">③ 任务内部 · arena Task 状态机 statemachine.Run(handlers)</text>
+
+        <!-- sub groups in Band A -->
+        <rect x="230" y="60" width="430" height="100" rx="8" fill="transparent" stroke="#64748b" stroke-width="1" stroke-dasharray="4,4"/>
+        <text x="242" y="76" fill="#94a3b8" font-size="8">共享底座（接口/单例，注入到各模块）</text>
+        <rect x="700" y="60" width="500" height="100" rx="8" fill="transparent" stroke="#34d399" stroke-width="1" stroke-dasharray="4,4"/>
+        <text x="712" y="76" fill="#34d399" font-size="8">业务模块</text>
+
+        <!-- ============================================================= -->
+        <!-- BAND A NODES                                                  -->
+        <!-- ============================================================= -->
+        <rect x="40" y="70" width="150" height="70" rx="6" fill="#0f172a"/>
+        <rect x="40" y="70" width="150" height="70" rx="6" fill="rgba(8, 51, 68, 0.5)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="115" y="98" fill="white" font-size="12" font-weight="600" text-anchor="middle">main.runBot</text>
+        <text x="115" y="116" fill="#94a3b8" font-size="8" text-anchor="middle">UI面板 → OnRun</text>
+        <text x="115" y="130" fill="#22d3ee" font-size="7" text-anchor="middle">main.go:44</text>
+
+        <!-- base stack (5 small boxes) -->
+        <rect x="245" y="84" width="74" height="52" rx="6" fill="#0f172a"/>
+        <rect x="245" y="84" width="74" height="52" rx="6" fill="rgba(30, 41, 59, 0.55)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="282" y="105" fill="white" font-size="10" font-weight="600" text-anchor="middle">Detector</text>
+        <text x="282" y="120" fill="#94a3b8" font-size="7" text-anchor="middle">screen 识别</text>
+
+        <rect x="327" y="84" width="74" height="52" rx="6" fill="#0f172a"/>
+        <rect x="327" y="84" width="74" height="52" rx="6" fill="rgba(30, 41, 59, 0.55)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="364" y="105" fill="white" font-size="10" font-weight="600" text-anchor="middle">Executor</text>
+        <text x="364" y="120" fill="#94a3b8" font-size="7" text-anchor="middle">action 操作</text>
+
+        <rect x="409" y="84" width="74" height="52" rx="6" fill="#0f172a"/>
+        <rect x="409" y="84" width="74" height="52" rx="6" fill="rgba(76, 29, 149, 0.45)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="446" y="105" fill="white" font-size="10" font-weight="600" text-anchor="middle">Store</text>
+        <text x="446" y="120" fill="#94a3b8" font-size="7" text-anchor="middle">JSON 持久化</text>
+
+        <rect x="491" y="84" width="74" height="52" rx="6" fill="#0f172a"/>
+        <rect x="491" y="84" width="74" height="52" rx="6" fill="rgba(136, 19, 55, 0.45)" stroke="#fb7185" stroke-width="1.5"/>
+        <text x="528" y="105" fill="white" font-size="10" font-weight="600" text-anchor="middle">Guard</text>
+        <text x="528" y="120" fill="#94a3b8" font-size="7" text-anchor="middle">弹窗陷阱</text>
+
+        <rect x="573" y="84" width="74" height="52" rx="6" fill="#0f172a"/>
+        <rect x="573" y="84" width="74" height="52" rx="6" fill="rgba(6, 78, 59, 0.45)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="610" y="105" fill="white" font-size="10" font-weight="600" text-anchor="middle">Scheduler</text>
+        <text x="610" y="120" fill="#94a3b8" font-size="7" text-anchor="middle">任务轮询</text>
+
+        <!-- modules -->
+        <rect x="720" y="84" width="150" height="52" rx="6" fill="#0f172a"/>
+        <rect x="720" y="84" width="150" height="52" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="795" y="105" fill="white" font-size="11" font-weight="600" text-anchor="middle">kingdom.Page</text>
+        <text x="795" y="121" fill="#94a3b8" font-size="8" text-anchor="middle">通用主页（跨模块）</text>
+
+        <rect x="890" y="84" width="150" height="52" rx="6" fill="#0f172a"/>
+        <rect x="890" y="84" width="150" height="52" rx="6" fill="rgba(6, 78, 59, 0.45)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="965" y="103" fill="white" font-size="11" font-weight="600" text-anchor="middle">arena.Task</text>
+        <text x="965" y="118" fill="#94a3b8" font-size="7" text-anchor="middle">page/route/session/sm</text>
+        <text x="965" y="129" fill="#34d399" font-size="7" text-anchor="middle">对外只暴露 Run()</text>
+
+        <!-- ============================================================= -->
+        <!-- BAND B NODES                                                  -->
+        <!-- ============================================================= -->
+        <rect x="50" y="300" width="120" height="60" rx="6" fill="#0f172a"/>
+        <rect x="50" y="300" width="120" height="60" rx="6" fill="rgba(30, 41, 59, 0.55)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="110" y="326" fill="white" font-size="11" font-weight="600" text-anchor="middle">① select stopCh</text>
+        <text x="110" y="344" fill="#94a3b8" font-size="8" text-anchor="middle">停止信号？退出</text>
+
+        <rect x="200" y="300" width="130" height="60" rx="6" fill="#0f172a"/>
+        <rect x="200" y="300" width="130" height="60" rx="6" fill="rgba(136, 19, 55, 0.45)" stroke="#fb7185" stroke-width="1.5"/>
+        <text x="265" y="326" fill="white" font-size="11" font-weight="600" text-anchor="middle">② guard.Check</text>
+        <text x="265" y="344" fill="#94a3b8" font-size="8" text-anchor="middle">弹窗陷阱·按优先级</text>
+
+        <rect x="360" y="300" width="150" height="60" rx="6" fill="#0f172a"/>
+        <rect x="360" y="300" width="150" height="60" rx="6" fill="rgba(6, 78, 59, 0.45)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="435" y="326" fill="white" font-size="11" font-weight="600" text-anchor="middle">③ scheduler.Run</text>
+        <text x="435" y="344" fill="#94a3b8" font-size="8" text-anchor="middle">顺序轮询 Condition</text>
+
+        <!-- hasWork diamond -->
+        <path d="M 600 295 L 647 330 L 600 367 L 553 330 Z" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/>
+        <path d="M 600 295 L 647 330 L 600 367 L 553 330 Z" fill="rgba(120, 53, 15, 0.45)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="600" y="326" fill="white" font-size="10" font-weight="600" text-anchor="middle">hasWork?</text>
+        <text x="600" y="340" fill="#94a3b8" font-size="7" text-anchor="middle">就绪?</text>
+
+        <rect x="700" y="300" width="170" height="60" rx="6" fill="#0f172a"/>
+        <rect x="700" y="300" width="170" height="60" rx="6" fill="rgba(6, 78, 59, 0.45)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="785" y="326" fill="white" font-size="11" font-weight="600" text-anchor="middle">④ Action()</text>
+        <text x="785" y="344" fill="#94a3b8" font-size="8" text-anchor="middle">arenaTask.Run()</text>
+
+        <rect x="515" y="405" width="170" height="46" rx="6" fill="#0f172a"/>
+        <rect x="515" y="405" width="170" height="46" rx="6" fill="rgba(30, 41, 59, 0.55)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="600" y="425" fill="white" font-size="10" font-weight="600" text-anchor="middle">MaxIdleWait()</text>
+        <text x="600" y="440" fill="#94a3b8" font-size="7" text-anchor="middle">取最大 remain · 带 guard 分段睡</text>
+
+        <text x="1010" y="330" fill="#fb7185" font-size="8" text-anchor="middle">guard 在 ② 抢占</text>
+        <text x="1010" y="344" fill="#fb7185" font-size="8" text-anchor="middle">状态机每 tick 再 Check</text>
+
+        <!-- ============================================================= -->
+        <!-- BAND C NODES — upper row (y=525..575)                          -->
+        <!-- ============================================================= -->
+        <!-- detect -->
+        <rect x="60" y="525" width="120" height="50" rx="6" fill="#0f172a"/>
+        <rect x="60" y="525" width="120" height="50" rx="6" fill="rgba(8, 51, 68, 0.5)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="120" y="546" fill="white" font-size="11" font-weight="600" text-anchor="middle">detect</text>
+        <text x="120" y="562" fill="#94a3b8" font-size="7" text-anchor="middle">识别当前页</text>
+
+        <!-- navigate -->
+        <rect x="210" y="525" width="120" height="50" rx="6" fill="#0f172a"/>
+        <rect x="210" y="525" width="120" height="50" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="270" y="546" fill="white" font-size="11" font-weight="600" text-anchor="middle">navigate</text>
+        <text x="270" y="562" fill="#94a3b8" font-size="7" text-anchor="middle">route.Enter()</text>
+
+        <!-- sync -->
+        <rect x="360" y="525" width="120" height="50" rx="6" fill="#0f172a"/>
+        <rect x="360" y="525" width="120" height="50" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="420" y="546" fill="white" font-size="11" font-weight="600" text-anchor="middle">sync</text>
+        <text x="420" y="562" fill="#94a3b8" font-size="7" text-anchor="middle">OCR 同步 session</text>
+
+        <!-- check -->
+        <rect x="510" y="525" width="120" height="50" rx="6" fill="#0f172a"/>
+        <rect x="510" y="525" width="120" height="50" rx="6" fill="rgba(120, 53, 15, 0.4)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="570" y="546" fill="white" font-size="11" font-weight="600" text-anchor="middle">check</text>
+        <text x="570" y="562" fill="#94a3b8" font-size="7" text-anchor="middle">结束/买票/选对手</text>
+
+        <!-- selectOpponent -->
+        <rect x="660" y="525" width="120" height="50" rx="6" fill="#0f172a"/>
+        <rect x="660" y="525" width="120" height="50" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="720" y="546" fill="white" font-size="11" font-weight="600" text-anchor="middle">selectOpponent</text>
+        <text x="720" y="562" fill="#94a3b8" font-size="7" text-anchor="middle">找/滑屏/刷新</text>
+
+        <!-- teamSelect -->
+        <rect x="810" y="525" width="120" height="50" rx="6" fill="#0f172a"/>
+        <rect x="810" y="525" width="120" height="50" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="3,3"/>
+        <text x="870" y="546" fill="white" font-size="11" font-weight="600" text-anchor="middle">teamSelect</text>
+        <text x="870" y="562" fill="#94a3b8" font-size="7" text-anchor="middle">TODO 占位</text>
+
+        <!-- battle -->
+        <rect x="960" y="525" width="120" height="50" rx="6" fill="#0f172a"/>
+        <rect x="960" y="525" width="120" height="50" rx="6" fill="rgba(136, 19, 55, 0.4)" stroke="#fb7185" stroke-width="1.5"/>
+        <text x="1020" y="546" fill="white" font-size="11" font-weight="600" text-anchor="middle">battle</text>
+        <text x="1020" y="562" fill="#94a3b8" font-size="7" text-anchor="middle">胜/平/负·票-1</text>
+
+        <!-- ============================================================= -->
+        <!-- BAND C NODES — lower row (y=655..701)                          -->
+        <!-- ============================================================= -->
+        <!-- buyTicket -->
+        <rect x="360" y="655" width="120" height="46" rx="6" fill="#0f172a"/>
+        <rect x="360" y="655" width="120" height="46" rx="6" fill="rgba(120, 53, 15, 0.4)" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="420" y="675" fill="white" font-size="11" font-weight="600" text-anchor="middle">buyTicket</text>
+        <text x="420" y="690" fill="#94a3b8" font-size="7" text-anchor="middle">BuyCount++</text>
+
+        <!-- leave -->
+        <rect x="810" y="655" width="120" height="46" rx="6" fill="#0f172a"/>
+        <rect x="810" y="655" width="120" height="46" rx="6" fill="rgba(30, 41, 59, 0.55)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="870" y="675" fill="white" font-size="11" font-weight="600" text-anchor="middle">leave</text>
+        <text x="870" y="690" fill="#94a3b8" font-size="7" text-anchor="middle">route.Leave()</text>
+
+        <!-- Done -->
+        <rect x="960" y="655" width="120" height="46" rx="6" fill="#0f172a"/>
+        <rect x="960" y="655" width="120" height="46" rx="6" fill="rgba(6, 78, 59, 0.55)" stroke="#34d399" stroke-width="2"/>
+        <text x="1020" y="680" fill="#34d399" font-size="12" font-weight="700" text-anchor="middle">Done ✓</text>
+
+        <text x="120" y="720" fill="#60a5fa" font-size="7">Fatal: 页面不识别</text>
+        <text x="1020" y="720" fill="#fb7185" font-size="7" text-anchor="middle">Fatal: 战斗/离开失败</text>
+
+        <!-- ============================================================= -->
+        <!-- LEGEND (outside all boundaries)                               -->
+        <!-- ============================================================= -->
+        <text x="40" y="840" fill="white" font-size="10" font-weight="600">组件类型</text>
+        <rect x="40" y="852" width="16" height="10" rx="2" fill="rgba(8, 51, 68, 0.5)" stroke="#22d3ee" stroke-width="1"/>
+        <text x="62" y="860" fill="#94a3b8" font-size="8">入口/UI</text>
+        <rect x="120" y="852" width="16" height="10" rx="2" fill="rgba(6, 78, 59, 0.45)" stroke="#34d399" stroke-width="1"/>
+        <text x="142" y="860" fill="#94a3b8" font-size="8">框架/业务</text>
+        <rect x="222" y="852" width="16" height="10" rx="2" fill="rgba(76, 29, 149, 0.45)" stroke="#a78bfa" stroke-width="1"/>
+        <text x="244" y="860" fill="#94a3b8" font-size="8">持久化</text>
+        <rect x="300" y="852" width="16" height="10" rx="2" fill="rgba(136, 19, 55, 0.45)" stroke="#fb7185" stroke-width="1"/>
+        <text x="322" y="860" fill="#94a3b8" font-size="8">Guard/打断</text>
+        <rect x="404" y="852" width="16" height="10" rx="2" fill="rgba(30, 41, 59, 0.55)" stroke="#94a3b8" stroke-width="1"/>
+        <text x="426" y="860" fill="#94a3b8" font-size="8">平台/出口</text>
+        <rect x="502" y="852" width="16" height="10" rx="2" fill="rgba(120, 53, 15, 0.4)" stroke="#fbbf24" stroke-width="1"/>
+        <text x="524" y="860" fill="#94a3b8" font-size="8">分支/边界</text>
+
+        <text x="660" y="840" fill="white" font-size="10" font-weight="600">状态机返回值</text>
+        <circle cx="666" cy="857" r="5" fill="#60a5fa"/><text x="678" y="860" fill="#94a3b8" font-size="8">Next 跳转</text>
+        <circle cx="746" cy="857" r="5" fill="#94a3b8"/><text x="758" y="860" fill="#94a3b8" font-size="8">Keep 停留</text>
+        <circle cx="826" cy="857" r="5" fill="#fbbf24"/><text x="838" y="860" fill="#94a3b8" font-size="8">Retry 重试</text>
+        <circle cx="906" cy="857" r="5" fill="#34d399"/><text x="918" y="860" fill="#94a3b8" font-size="8">Done 完成</text>
+        <circle cx="986" cy="857" r="5" fill="#fb7185"/><text x="998" y="860" fill="#94a3b8" font-size="8">Fatal 终止</text>
+
+        <text x="40" y="888" fill="white" font-size="10" font-weight="600">线型</text>
+        <line x1="40" y1="898" x2="80" y2="898" stroke="#34d399" stroke-width="1.5"/><text x="88" y="901" fill="#94a3b8" font-size="8">主调用 / Next</text>
+        <line x1="180" y1="898" x2="220" y2="898" stroke="#22d3ee" stroke-width="1.6"/><text x="228" y="901" fill="#94a3b8" font-size="8">回环 sync</text>
+        <line x1="306" y1="898" x2="346" y2="898" stroke="#fb7185" stroke-width="1.4" stroke-dasharray="5,3"/><text x="354" y="901" fill="#94a3b8" font-size="8">异常 / 打断</text>
+        <line x1="432" y1="898" x2="472" y2="898" stroke="#fbbf24" stroke-width="1.4"/><text x="480" y="901" fill="#94a3b8" font-size="8">分支</text>
+        <line x1="540" y1="898" x2="580" y2="898" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,3"/><text x="588" y="901" fill="#94a3b8" font-size="8">下一轮 round</text>
+      </svg>
+    </div>
+
+    <!-- Info Cards -->
+    <div class="cards">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot amber"></div>
+          <h3>① 装配与依赖注入</h3>
+        </div>
+        <ul>
+          <li>• main.runBot 只做装配：一套共享底座 + 若干业务模块</li>
+          <li>• Detector / Executor 是接口，业务零依赖具体平台</li>
+          <li>• arena.Task 内部自含 page/route/session/sm，对外仅 Run()</li>
+          <li>• sched.Build 把 TaskOpts 编译成 condition + idleProvider</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot emerald"></div>
+          <h3>② 主循环与调度</h3>
+        </div>
+        <ul>
+          <li>• 每轮：stop → guard.Check → scheduler.Run → sleep</li>
+          <li>• guard 抢占 + 状态机每 tick 再 Check，弹窗 500ms 内响应</li>
+          <li>• 注册顺序 = 优先级，第一个 Condition==true 的任务先跑</li>
+          <li>• 无活时取各 idleProvider 最大 remain，带 guard 分段睡眠</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-dot violet"></div>
+          <h3>③ 状态机范式</h3>
+        </div>
+        <ul>
+          <li>• 环形模板：detect→sync→check→(干一步)→sync→…→leave→Done</li>
+          <li>• sync 是循环锚点：每次执行后回这里重新同步状态</li>
+          <li>• check 集中所有结束/分支判断，leave 是唯一正常出口</li>
+          <li>• 5 种返回值 Next/Keep/Retry/Done/Fatal 驱动流转</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <p class="footer">
+      Superbin Cookie (shuaibin-cookie-go) · 基于 internal/* 源码走读生成 · 2026-07-10
+    </p>
+  </div>
+
+  <script>
+    async function copyAsImage(btn) {
+      const orig = btn.textContent;
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        btn.textContent = '✓ Copied!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+
+    async function downloadPNG(btn) {
+      const orig = btn.textContent;
+      btn.textContent = '⏳ ...';
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const link = document.createElement('a');
+        link.download = 'superbin-cookie-dataflow.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        btn.textContent = '✓ Done!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+
+    async function downloadPDF(btn) {
+      const orig = btn.textContent;
+      btn.textContent = '⏳ ...';
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
+        const pdf = new jsPDF({ orientation, unit: 'px', format: [canvas.width, canvas.height], hotfixes: ['px_scaling'] });
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save('superbin-cookie-dataflow.pdf');
+        btn.textContent = '✓ Done!';
+      } catch (e) {
+        btn.textContent = '✗ Failed';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+  </script>
+</body>
+</html>
