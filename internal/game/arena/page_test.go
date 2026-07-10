@@ -121,10 +121,10 @@ func (e *mockExecutor) Sleep(ms int) { e.sleeps = append(e.sleeps, ms) }
 func newLobbyFeature() *Feature {
 	f := DefaultFeature()
 	f.Lobby.Identify = screen.Feature{Colors: "lobby", Sim: 0.95}
-	f.Lobby.Reads.MedalTicket = screen.Region{1, 1, 100, 30}
-	f.Lobby.Reads.Trophy = screen.Region{1, 40, 100, 70}
-	f.Lobby.Reads.Refresh = screen.Region{1, 80, 100, 110}
-	f.Lobby.Reads.FreeRefresh = screen.Region{1, 120, 100, 150}
+	f.Lobby.Reads.MedalTicket = screen.Region{X1: 1, Y1: 1, X2: 100, Y2: 30}
+	f.Lobby.Reads.Trophy = screen.Region{X1: 1, Y1: 40, X2: 100, Y2: 70}
+	f.Lobby.Reads.Refresh = screen.Region{X1: 1, Y1: 80, X2: 100, Y2: 110}
+	f.Lobby.Reads.FreeRefresh = screen.Region{X1: 1, Y1: 120, X2: 100, Y2: 150}
 	f.Lobby.Actions.FreeRefresh = screen.Point{X: 300, Y: 800}
 	f.Lobby.Gestures.SwipeLeft = action.Swipe{
 		From: action.Point{X: 1400, Y: 450}, To: action.Point{X: 200, Y: 450}, DurationMs: 300}
