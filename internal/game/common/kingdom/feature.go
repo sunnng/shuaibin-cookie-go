@@ -12,7 +12,6 @@ type Feature struct {
 
 func DefaultFeature() *Feature {
 	return &Feature{
-		// Placeholder values; replace with real features from Lua 通用_王国/特征库.lua
 		HomeFeature:      screen.Feature{},
 		AdventureFeature: screen.Feature{},
 		EventBtn:         screen.Rect{},

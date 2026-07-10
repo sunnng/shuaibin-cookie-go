@@ -70,7 +70,7 @@ func buildRuntime(cfg *config.Config) *runtime.Runtime {
 	arenaSession := arena.NewSession(s)
 	arenaTask := arena.NewTask(
 		&cfg.Modules.Arena,
-		det, exec, arenaFeature, kingdomPage, kingdomFeature, arenaSession, g,
+		det, exec, arenaFeature, kingdomPage, arenaSession, g,
 	)
 
 	sched.Build(scheduler.TaskOpts{

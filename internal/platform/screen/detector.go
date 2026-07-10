@@ -12,7 +12,10 @@ type Region struct {
 }
 
 // Feature is a placeholder for a screen feature descriptor.
-type Feature struct{}
+type Feature struct{
+	Colors string // 多点比色串
+    Sim    float32
+}
 
 // Rect is a placeholder rectangle for UI element bounds.
 type Rect struct {

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>单模块六件套 · 依赖与数据流（开发模板）</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js" integrity="sha384-en/ztfPSRkGfME4KIm05joYXynqzUgbsG5nMrj/xEFAHXkeZfO3yMK8QQ+mP7p1/" crossorigin="anonymous"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      background: #020617; min-height: 100vh; padding: 2rem; color: white;
+    }
+    .container { max-width: 1240px; margin: 0 auto; }
+    .header { margin-bottom: 2rem; }
+    .header-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+    .pulse-dot { width: 12px; height: 12px; background: #22d3ee; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+    h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.025em; }
+    .subtitle { color: #94a3b8; font-size: 0.875rem; margin-left: 1.75rem; }
+    .diagram-container {
+      background: rgba(15, 23, 42, 0.5); border-radius: 1rem;
+      border: 1px solid #1e293b; padding: 1.5rem; overflow-x: auto;
+    }
+    svg { width: 100%; min-width: 1080px; display: block; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 2rem; }
+    .card { background: rgba(15, 23, 42, 0.5); border-radius: 0.75rem; border: 1px solid #1e293b; padding: 1.25rem; }
+    .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .card-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .card-dot.cyan { background: #22d3ee; } .card-dot.emerald { background: #34d399; }
+    .card-dot.violet { background: #a78bfa; } .card-dot.amber { background: #fbbf24; }
+    .card-dot.rose { background: #fb7185; }
+    .card h3 { font-size: 0.875rem; font-weight: 600; }
+    .card ul { list-style: none; color: #94a3b8; font-size: 0.75rem; }
+    .card li { margin-bottom: 0.375rem; }
+    .footer { text-align: center; margin-top: 1.5rem; color: #475569; font-size: 0.75rem; }
+    .toolbar { display: flex; gap: 0.5rem; margin-left: auto; flex-shrink: 0; align-items: center; }
+    .toolbar-toggle { background: transparent; border: none; color: #475569; cursor: pointer; font-size: 1.25rem; line-height: 1; padding: 0.25rem 0.5rem; border-radius: 0.375rem; transition: color 0.2s, background 0.2s; }
+    .toolbar-toggle:hover { color: #94a3b8; background: rgba(30, 41, 59, 0.5); }
+    .toolbar-actions { display: none; gap: 0.5rem; }
+    .toolbar.expanded .toolbar-actions { display: flex; }
+    .toolbar-actions button { background: rgba(30, 41, 59, 0.8); border: 1px solid #334155; color: #94a3b8; padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-family: inherit; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+    .toolbar-actions button:hover { background: rgba(51, 65, 85, 0.8); color: white; border-color: #475569; }
+    @media print { body { background: #020617; padding: 1rem; } .toolbar { display: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="container" id="report-container">
+    <div class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>单模块六件套 · 依赖与数据流</h1>
+        <div class="toolbar">
+          <div class="toolbar-actions">
+            <button onclick="copyAsImage(this)">📋 Copy</button>
+            <button onclick="downloadPNG(this)">🖼️ PNG</button>
+            <button onclick="downloadPDF(this)">📄 PDF</button>
+          </div>
+          <button class="toolbar-toggle" onclick="this.parentElement.classList.toggle('expanded')" title="Export options" aria-label="Export options">⋯</button>
+        </div>
+      </div>
+      <p class="subtitle">feature / page / route / session / task / statemachine — 一个游戏模块内部谁持有谁、数据怎么流、测试在哪 mock（以 arena 为范本）</p>
+    </div>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 1240 950">
+        <defs>
+          <marker id="ah" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/></marker>
+          <marker id="ah-em" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#34d399"/></marker>
+          <marker id="ah-em-s" markerWidth="10" markerHeight="7" refX="1" refY="3.5" orient="auto"><polygon points="10 0, 0 3.5, 10 7" fill="#34d399"/></marker>
+          <marker id="ah-cy" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee"/></marker>
+          <marker id="ah-cy-s" markerWidth="10" markerHeight="7" refX="1" refY="3.5" orient="auto"><polygon points="10 0, 0 3.5, 10 7" fill="#22d3ee"/></marker>
+          <marker id="ah-sl" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8"/></marker>
+          <marker id="ah-am" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#fbbf24"/></marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/></pattern>
+        </defs>
+
+        <rect width="100%" height="100%" fill="url(#grid)"/>
+
+        <!-- ============================================================ -->
+        <!-- ARROWS (bottom layer)                                         -->
+        <!-- ============================================================ -->
+        <!-- structural: Task holds -->
+        <line x1="510" y1="475" x2="272" y2="487" stroke="#34d399" stroke-width="1.6" marker-end="url(#ah-em)"/>
+        <line x1="620" y1="420" x2="610" y2="237" stroke="#34d399" stroke-width="1.6" marker-end="url(#ah-em)"/>
+        <line x1="730" y1="475" x2="948" y2="487" stroke="#34d399" stroke-width="1.6" marker-end="url(#ah-em)"/>
+        <line x1="625" y1="530" x2="625" y2="688" stroke="#34d399" stroke-width="1.6" marker-start="url(#ah-em-s)" marker-end="url(#ah-em)"/>
+        <path d="M 730 450 L 880 450 L 880 192 L 958 192" fill="none" stroke="#34d399" stroke-width="1.6" marker-end="url(#ah-em)"/>
+
+        <!-- structural: component deps -->
+        <line x1="170" y1="440" x2="170" y2="237" stroke="#34d399" stroke-width="1.5" marker-end="url(#ah-em)"/>
+        <line x1="120" y1="535" x2="120" y2="638" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ah-sl)"/>
+        <line x1="250" y1="535" x2="250" y2="638" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ah-sl)"/>
+        <path d="M 560 235 L 560 320 L 170 320 L 170 438" fill="none" stroke="#34d399" stroke-width="1.5" marker-end="url(#ah-em)"/>
+        <line x1="610" y1="150" x2="610" y2="97" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#ah-am)"/>
+        <line x1="1065" y1="535" x2="1065" y2="598" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#ah)"/>
+
+        <!-- runtime data flow (cyan dashed) -->
+        <path d="M 650 530 L 650 640 L 1065 640 L 1065 688" fill="none" stroke="#22d3ee" stroke-width="1.6" stroke-dasharray="6,3" marker-end="url(#ah-cy)"/>
+        <line x1="950" y1="737" x2="782" y2="737" stroke="#22d3ee" stroke-width="1.6" stroke-dasharray="6,3" marker-start="url(#ah-cy-s)" marker-end="url(#ah-cy)"/>
+
+        <!-- edge labels -->
+        <text x="360" y="468" fill="#34d399" font-size="8">NewPage · 持有</text>
+        <text x="636" y="330" fill="#34d399" font-size="8">NewRoute · 持有</text>
+        <text x="800" y="468" fill="#34d399" font-size="8">注入 · 持有</text>
+        <text x="636" y="610" fill="#34d399" font-size="8">持有 handlers()  /  ctx.task 反引</text>
+        <text x="720" y="440" fill="#34d399" font-size="8">cfg 注入</text>
+        <text x="184" y="340" fill="#34d399" font-size="8">读数据</text>
+        <text x="360" y="314" fill="#34d399" font-size="8">持有 Page</text>
+        <text x="624" y="126" fill="#fbbf24" font-size="8">跨模块依赖</text>
+        <text x="1078" y="568" fill="#a78bfa" font-size="8">持久化</text>
+        <text x="820" y="636" fill="#22d3ee" font-size="8">Run() 启动引擎</text>
+        <text x="866" y="730" fill="#22d3ee" font-size="8" text-anchor="middle">每 tick 调用 / 返回 Result</text>
+
+        <!-- ============================================================ -->
+        <!-- CENTER: Task                                                  -->
+        <!-- ============================================================ -->
+        <rect x="510" y="420" width="220" height="110" rx="8" fill="#0f172a"/>
+        <rect x="510" y="420" width="220" height="110" rx="8" fill="rgba(6, 78, 59, 0.5)" stroke="#34d399" stroke-width="2"/>
+        <text x="620" y="446" fill="white" font-size="13" font-weight="700" text-anchor="middle">task.go — Task</text>
+        <text x="620" y="466" fill="#94a3b8" font-size="8" text-anchor="middle">NewTask(): 装配 page/route/session/sm</text>
+        <text x="620" y="484" fill="#94a3b8" font-size="8" text-anchor="middle">Run() → sm.Init + sm.Run(handlers)</text>
+        <text x="620" y="504" fill="#fb7185" font-size="8" text-anchor="middle">定义私有 page / route 接口（mock 点）</text>
+        <text x="620" y="521" fill="#34d399" font-size="7" text-anchor="middle">对外只暴露 Run()</text>
+
+        <!-- ============================================================ -->
+        <!-- feature (top-left, pure data)                                 -->
+        <!-- ============================================================ -->
+        <rect x="60" y="150" width="210" height="85" rx="6" fill="#0f172a"/>
+        <rect x="60" y="150" width="210" height="85" rx="6" fill="rgba(8, 51, 68, 0.5)" stroke="#22d3ee" stroke-width="1.5"/>
+        <text x="165" y="176" fill="white" font-size="12" font-weight="600" text-anchor="middle">feature.go</text>
+        <text x="165" y="194" fill="#22d3ee" font-size="8" text-anchor="middle">纯数据 · 零运行时依赖</text>
+        <text x="165" y="212" fill="#94a3b8" font-size="7" text-anchor="middle">Point / Region / Feature / OCR 区域</text>
+        <text x="165" y="226" fill="#94a3b8" font-size="7" text-anchor="middle">坐标先占位，上机再填</text>
+
+        <!-- route (top-mid) -->
+        <rect x="470" y="150" width="280" height="85" rx="6" fill="#0f172a"/>
+        <rect x="470" y="150" width="280" height="85" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="610" y="176" fill="white" font-size="12" font-weight="600" text-anchor="middle">route.go — Route</text>
+        <text x="610" y="194" fill="#94a3b8" font-size="8" text-anchor="middle">Enter() / Leave() 进出导航</text>
+        <text x="610" y="212" fill="#94a3b8" font-size="7" text-anchor="middle">持有本模块 Page + 通用 kingdom.Page</text>
+        <text x="610" y="226" fill="#fbbf24" font-size="7" text-anchor="middle">★ 唯一允许跨模块依赖的位置</text>
+
+        <!-- kingdom.Page (above route) -->
+        <rect x="480" y="40" width="260" height="55" rx="6" fill="#0f172a"/>
+        <rect x="480" y="40" width="260" height="55" rx="6" fill="rgba(120, 53, 15, 0.35)" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <text x="610" y="62" fill="white" font-size="11" font-weight="600" text-anchor="middle">common/kingdom.Page</text>
+        <text x="610" y="78" fill="#94a3b8" font-size="8" text-anchor="middle">跨模块共享页（回主页/进冒险）</text>
+
+        <!-- config (top-right) -->
+        <rect x="960" y="150" width="210" height="85" rx="6" fill="#0f172a"/>
+        <rect x="960" y="150" width="210" height="85" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="1065" y="176" fill="white" font-size="12" font-weight="600" text-anchor="middle">config (cfg)</text>
+        <text x="1065" y="194" fill="#94a3b8" font-size="8" text-anchor="middle">用户配置 · JSON</text>
+        <text x="1065" y="212" fill="#94a3b8" font-size="7" text-anchor="middle">注入 Task + 经 ctx.cfg 进 handler</text>
+        <text x="1065" y="226" fill="#a78bfa" font-size="7" text-anchor="middle">缺字段走 DefaultConfig</text>
+
+        <!-- page (left) -->
+        <rect x="70" y="440" width="200" height="95" rx="6" fill="#0f172a"/>
+        <rect x="70" y="440" width="200" height="95" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="170" y="466" fill="white" font-size="12" font-weight="600" text-anchor="middle">page.go — Page</text>
+        <text x="170" y="484" fill="#94a3b8" font-size="8" text-anchor="middle">Is / Read / Tap 三类方法</text>
+        <text x="170" y="502" fill="#94a3b8" font-size="7" text-anchor="middle">detector + executor + feature</text>
+        <text x="170" y="518" fill="#94a3b8" font-size="7" text-anchor="middle">坐标永不硬编码，走 feature</text>
+        <text x="170" y="530" fill="#fb7185" font-size="7" text-anchor="middle">实现 task.go 的 page 接口</text>
+
+        <!-- Detector / Executor (left-bottom) -->
+        <rect x="40" y="640" width="150" height="60" rx="6" fill="#0f172a"/>
+        <rect x="40" y="640" width="150" height="60" rx="6" fill="rgba(30, 41, 59, 0.55)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="115" y="664" fill="white" font-size="10" font-weight="600" text-anchor="middle">screen.Detector</text>
+        <text x="115" y="680" fill="#94a3b8" font-size="7" text-anchor="middle">接口 · 颜色/图/OCR</text>
+
+        <rect x="200" y="640" width="150" height="60" rx="6" fill="#0f172a"/>
+        <rect x="200" y="640" width="150" height="60" rx="6" fill="rgba(30, 41, 59, 0.55)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="275" y="664" fill="white" font-size="10" font-weight="600" text-anchor="middle">action.Executor</text>
+        <text x="275" y="680" fill="#94a3b8" font-size="7" text-anchor="middle">接口 · Tap/Swipe</text>
+
+        <!-- session (right) -->
+        <rect x="950" y="440" width="230" height="95" rx="6" fill="#0f172a"/>
+        <rect x="950" y="440" width="230" height="95" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="1065" y="466" fill="white" font-size="12" font-weight="600" text-anchor="middle">session.go — Session</text>
+        <text x="1065" y="484" fill="#94a3b8" font-size="8" text-anchor="middle">运行时计数 + 持久化键值</text>
+        <text x="1065" y="502" fill="#94a3b8" font-size="7" text-anchor="middle">胜/平/负/票/下次刷新时间</text>
+        <text x="1065" y="520" fill="#a78bfa" font-size="7" text-anchor="middle">★ 双面：handler 读写 + CheckReady 读</text>
+        <text x="1065" y="531" fill="#94a3b8" font-size="7" text-anchor="middle">IsReachMaxBattles / TimeUntilRefresh</text>
+
+        <!-- store (below session) -->
+        <rect x="980" y="600" width="180" height="60" rx="6" fill="#0f172a"/>
+        <rect x="980" y="600" width="180" height="60" rx="6" fill="rgba(76, 29, 149, 0.35)" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <text x="1070" y="624" fill="white" font-size="11" font-weight="600" text-anchor="middle">store.Store</text>
+        <text x="1070" y="640" fill="#94a3b8" font-size="8" text-anchor="middle">JSON 文件键值</text>
+
+        <!-- handlers (bottom-mid) -->
+        <rect x="480" y="690" width="300" height="95" rx="6" fill="#0f172a"/>
+        <rect x="480" y="690" width="300" height="95" rx="6" fill="rgba(6, 78, 59, 0.45)" stroke="#34d399" stroke-width="1.5"/>
+        <text x="630" y="716" fill="white" font-size="12" font-weight="600" text-anchor="middle">statemachine.go — handlers 表</text>
+        <text x="630" y="734" fill="#94a3b8" font-size="8" text-anchor="middle">map[state]Handler · 纯函数集合</text>
+        <text x="630" y="752" fill="#94a3b8" font-size="7" text-anchor="middle">经 sm.Ctx.(*arenaCtx) 回调 task.page/route/session</text>
+        <text x="630" y="768" fill="#94a3b8" font-size="7" text-anchor="middle">返回 Next / Keep / Retry / Done / Fatal</text>
+        <text x="630" y="780" fill="#34d399" font-size="7" text-anchor="middle">detect→sync→check→…→leave→Done</text>
+
+        <!-- statemachine.Machine engine (bottom-right) -->
+        <rect x="950" y="690" width="230" height="95" rx="6" fill="#0f172a"/>
+        <rect x="950" y="690" width="230" height="95" rx="6" fill="rgba(30, 41, 59, 0.5)" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <text x="1065" y="716" fill="white" font-size="11" font-weight="600" text-anchor="middle">statemachine.Machine</text>
+        <text x="1065" y="732" fill="#94a3b8" font-size="8" text-anchor="middle">引擎（框架提供，复用）</text>
+        <text x="1065" y="750" fill="#94a3b8" font-size="7" text-anchor="middle">驱动 handlers · 重试/超时/guard</text>
+        <text x="1065" y="766" fill="#94a3b8" font-size="7" text-anchor="middle">业务只写 handler，不写引擎</text>
+
+        <!-- mock note -->
+        <rect x="300" y="558" width="170" height="66" rx="6" fill="transparent" stroke="#fb7185" stroke-width="1.2" stroke-dasharray="4,3"/>
+        <text x="385" y="578" fill="#fb7185" font-size="9" font-weight="600" text-anchor="middle">测试 mock 点</text>
+        <text x="385" y="596" fill="#94a3b8" font-size="7" text-anchor="middle">newTask(cfg, mockPage,</text>
+        <text x="385" y="608" fill="#94a3b8" font-size="7" text-anchor="middle">mockRoute, session, guard)</text>
+        <text x="385" y="620" fill="#94a3b8" font-size="7" text-anchor="middle">驱动 runWithOptions</text>
+
+        <!-- ============================================================ -->
+        <!-- LEGEND                                                        -->
+        <!-- ============================================================ -->
+        <text x="40" y="836" fill="white" font-size="10" font-weight="600">依赖 / 数据流</text>
+        <line x1="40" y1="852" x2="82" y2="852" stroke="#34d399" stroke-width="1.6"/><text x="90" y="855" fill="#94a3b8" font-size="8">结构依赖 / 持有（实线）</text>
+        <line x1="248" y1="852" x2="290" y2="852" stroke="#22d3ee" stroke-width="1.6" stroke-dasharray="6,3"/><text x="298" y="855" fill="#94a3b8" font-size="8">运行期数据流（虚线）</text>
+        <line x1="470" y1="852" x2="512" y2="852" stroke="#94a3b8" stroke-width="1.5"/><text x="520" y="855" fill="#94a3b8" font-size="8">平台接口依赖</text>
+        <line x1="640" y1="852" x2="682" y2="852" stroke="#fbbf24" stroke-width="1.5"/><text x="690" y="855" fill="#94a3b8" font-size="8">跨模块依赖</text>
+
+        <text x="40" y="888" fill="white" font-size="10" font-weight="600">文件类型</text>
+        <rect x="40" y="898" width="16" height="10" rx="2" fill="rgba(8, 51, 68, 0.5)" stroke="#22d3ee" stroke-width="1"/><text x="62" y="906" fill="#94a3b8" font-size="8">纯数据 feature</text>
+        <rect x="172" y="898" width="16" height="10" rx="2" fill="rgba(6, 78, 59, 0.45)" stroke="#34d399" stroke-width="1"/><text x="194" y="906" fill="#94a3b8" font-size="8">组件 page/route/task/handlers</text>
+        <rect x="400" y="898" width="16" height="10" rx="2" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1"/><text x="422" y="906" fill="#94a3b8" font-size="8">状态 session/cfg/store</text>
+        <rect x="560" y="898" width="16" height="10" rx="2" fill="rgba(30, 41, 59, 0.55)" stroke="#94a3b8" stroke-width="1"/><text x="582" y="906" fill="#94a3b8" font-size="8">平台接口</text>
+        <rect x="678" y="898" width="16" height="10" rx="2" fill="transparent" stroke="#fb7185" stroke-width="1" stroke-dasharray="3,3"/><text x="700" y="906" fill="#94a3b8" font-size="8">mock 注入点</text>
+      </svg>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-header"><div class="card-dot cyan"></div><h3>六个文件的职责</h3></div>
+        <ul>
+          <li>• <b>feature.go</b>：纯数据，UI 坐标/颜色/OCR 区域，零运行时依赖</li>
+          <li>• <b>page.go</b>：单页读写，Is/Read/Tap 三类，坐标走 feature</li>
+          <li>• <b>route.go</b>：Enter/Leave 导航，唯一可跨模块（借 kingdom）</li>
+          <li>• <b>session.go</b>：运行计数 + store 持久化</li>
+          <li>• <b>task.go</b>：装配 + Run 入口，定义 mock 接口</li>
+          <li>• <b>statemachine.go</b>：handler 表，纯函数，经 ctx 回调</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-dot emerald"></div><h3>依赖方向（无环）</h3></div>
+        <ul>
+          <li>• feature ← page ← route → Task → handlers</li>
+          <li>• session / cfg → Task（注入），handler 经 ctx 读</li>
+          <li>• page → Detector / Executor（接口，不碰具体平台）</li>
+          <li>• 跨模块只能出现在 route（→ common/kingdom）</li>
+          <li>• statemachine.Machine 引擎由框架提供，业务不重写</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-dot rose"></div><h3>测试与扩展</h3></div>
+        <ul>
+          <li>• mock task.go 的 page/route 私有接口，newTask 注入</li>
+          <li>• session 用内存 store，runWithOptions 短 interval 驱动</li>
+          <li>• 新模块复制 6 文件，先空 feature 后填坐标</li>
+          <li>• session 同时服务任务内计数与调度器 CheckReady</li>
+          <li>• 对照 internal/game/arena/* 逐文件抄结构最稳</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="footer">Superbin Cookie (shuaibin-cookie-go) · 单模块六件套依赖与数据流 · 2026-07-10</p>
+  </div>
+
+  <script>
+    async function copyAsImage(btn) {
+      const orig = btn.textContent;
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect(); const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        btn.textContent = '✓ Copied!';
+      } catch (e) { btn.textContent = '✗ Failed'; }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+    async function downloadPNG(btn) {
+      const orig = btn.textContent; btn.textContent = '⏳ ...';
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect(); const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const link = document.createElement('a'); link.download = 'module-six-pack.png'; link.href = canvas.toDataURL('image/png'); link.click();
+        btn.textContent = '✓ Done!';
+      } catch (e) { btn.textContent = '✗ Failed'; }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+    async function downloadPDF(btn) {
+      const orig = btn.textContent; btn.textContent = '⏳ ...';
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect(); const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#020617', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const imgData = canvas.toDataURL('image/png'); const { jsPDF } = window.jspdf;
+        const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
+        const pdf = new jsPDF({ orientation, unit: 'px', format: [canvas.width, canvas.height], hotfixes: ['px_scaling'] });
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height); pdf.save('module-six-pack.pdf');
+        btn.textContent = '✓ Done!';
+      } catch (e) { btn.textContent = '✗ Failed'; }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+  </script>
+</body>
+</html>

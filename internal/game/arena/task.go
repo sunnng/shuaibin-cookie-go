@@ -50,11 +50,9 @@ func NewTask(
 	exec action.Executor,
 	feature *Feature,
 	kingdomPage *kingdom.Page,
-	kingdomFeature *kingdom.Feature,
 	session *Session,
 	guard *guard.Guard,
 ) *Task {
-	_ = kingdomFeature
 	page := NewPage(det, exec, feature)
 	route := NewRoute(page, kingdomPage)
 	return &Task{

@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## Project Overview
 
@@ -60,8 +60,8 @@ For local development on non-Android hosts, the project uses `//go:build android
 - **Task-level state machines**: each game module (e.g. `internal/game/arena`) owns an `internal/statemachine.Machine` for its internal flow (`detect → navigate → sync → ...`).
 - **Interfaces for testability**: `platform/screen.Detector` and `platform/action.Executor` are interfaces. Unit tests mock them so the scheduler, runtime, guard, and state machines can be tested without Android runtime.
 - **Cross-platform compilation**: `go build ./...` and `go test ./...` work on Windows because platform-specific AutoGo calls are guarded by build tags or live in stub factories.
-- **Build-tag split**: packages `platform/screen` and `platform/action` each have a `factory.go` with `//go:build !android` that returns stubs, and a `factory_android.go` with `//go:build android` that returns real `AndroidDetector` / `AndroidExecutor` implementations. The real implementations are split across files (e.g., `color.go`, `image.go`, `ocr.go`, `tap.go`, `navigate.go`) and are only compiled for Android.
-- **Coordinate scaling**: `internal/platform/action/coord.go` scales 1600×900 base coordinates to the actual device resolution and bounds the result. `AndroidExecutor.Tap`/`Swipe` call `action.SafeTap` using the live display size.
+- **Build-tag split**: packages `platform/screen` and `platform/action` each have a `factory.go` with `//go:build !android` that returns stubs, and a `factory_android.go` with `//go:build android` that returns real `AndroidDetector` / `AndroidExecutor` implementations.
+- **Coordinate scaling**: `internal/platform/action/coord.go` scales 1600×900 base coordinates to the actual device resolution and bounds the result.
 - **Config**: `internal/config/static.go` defines defaults and `internal/config/user.go` loads `config.json`. Missing `config.json` falls back to `DefaultConfig()`. Stable UI constants belong in module code, not JSON.
 - **Guard**: `internal/guard/guard.go` registers popup traps by priority and provides segmented sleep that checks traps periodically.
 - **Store**: `internal/store/store.go` persists small JSON-backed state (e.g. arena next free refresh time).
@@ -72,29 +72,11 @@ For local development on non-Android hosts, the project uses `//go:build android
 # Run all unit tests (works on Windows)
 go test ./...
 
-# Run tests verbosely
-go test ./... -v
-
-# Run a single test
-go test ./internal/statemachine -run TestMachineNextTransition
-
-# Run tests for one package
-go test ./internal/game/arena/...
-
 # Type-check / build all packages (works on Windows)
 go build ./...
 
-# Type-check with Android build tags (catches Android-only compilation issues)
-go build -tags android ./...
-
 # Format all Go files
 gofmt -w .
-
-# Check formatting without writing
-gofmt -l .
-
-# Run basic static analysis
-go vet ./...
 
 # Tidy modules after adding/removing dependencies
 go mod tidy

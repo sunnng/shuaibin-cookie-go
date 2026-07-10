@@ -1,3 +1,15 @@
 {
-  "AutoGo.targetPlatform": "android"
+  "AutoGo.targetPlatform": "android",
+  "go.toolsEnvVars": {
+    "GOOS": "windows",
+    "GOARCH": "amd64",
+    "CGO_ENABLED": "0"
+  },
+  "gopls": {
+    "build.env": {
+      "GOOS": "windows",
+      "GOARCH": "amd64",
+      "CGO_ENABLED": "0"
+    }
+  }
 }

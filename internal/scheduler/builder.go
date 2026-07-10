@@ -7,36 +7,36 @@ import (
 )
 
 type TaskOpts struct {
-	Name               string
-	CheckEnabled       func() bool
-	CanResume          func() bool
-	CheckReady         func() (bool, time.Duration)
-	WaitHUD            func(remain time.Duration) string
-	OnNotReady         func(remain time.Duration)
-	Precondition       func() bool
-	OnPreconditionFail func()
-	Prepare            func() error
-	Action             func() error
+	Name         string
+	CheckEnabled func() bool
+	CheckReady   func() (bool, time.Duration)
+	WaitHUD      func(remain time.Duration) string
+	Action       func() error
 }
 
 func (s *Scheduler) Build(opts TaskOpts) {
+	if opts.CheckReady != nil {
+		s.AddIdleProvider(opts.Name, func() (time.Duration, string) {
+			if opts.CheckEnabled != nil && !opts.CheckEnabled() {
+				return 0, ""
+			}
+			ready, remain := opts.CheckReady()
+			if ready || remain <= 0 {
+				return 0, ""
+			}
+			label := opts.Name
+			if opts.WaitHUD != nil {
+				if msg := opts.WaitHUD(remain); msg != "" {
+					label = msg
+				}
+			}
+			return remain, label
+		})
+	}
+
 	condition := func() bool {
-		if opts.CheckEnabled != nil {
-			if !opts.CheckEnabled() {
-				return false
-			}
-		}
-
-		if opts.Precondition != nil && !opts.Precondition() {
-			logger.Infof("[TaskBuilder] %s precondition failed", opts.Name)
-			if opts.OnPreconditionFail != nil {
-				opts.OnPreconditionFail()
-			}
+		if opts.CheckEnabled != nil && !opts.CheckEnabled() {
 			return false
-		}
-
-		if opts.CanResume != nil && opts.CanResume() {
-			return true
 		}
 
 		if opts.CheckReady != nil {
@@ -45,9 +45,6 @@ func (s *Scheduler) Build(opts TaskOpts) {
 				if opts.WaitHUD != nil && remain > 0 {
 					logger.Infof("[TaskBuilder] %s waiting: %s", opts.Name, opts.WaitHUD(remain))
 				}
-				if opts.OnNotReady != nil {
-					opts.OnNotReady(remain)
-				}
 				return false
 			}
 		}
@@ -55,14 +52,5 @@ func (s *Scheduler) Build(opts TaskOpts) {
 		return true
 	}
 
-	action := func() error {
-		if opts.Prepare != nil {
-			if err := opts.Prepare(); err != nil {
-				return err
-			}
-		}
-		return opts.Action()
-	}
-
-	s.Add(opts.Name, condition, action)
+	s.Add(opts.Name, condition, opts.Action)
 }

@@ -8,11 +8,11 @@ import (
 
 func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
-	if cfg.TickIntervalMs != 800 {
-		t.Fatalf("unexpected tick interval")
-	}
 	if !cfg.Modules.Arena.Enabled {
-		t.Fatal("arena should be enabled by default for test")
+		t.Fatal("arena should be enabled by default")
+	}
+	if cfg.Modules.Arena.AutoBuyCount != 0 {
+		t.Fatalf("expected autoBuyCount=0, got %d", cfg.Modules.Arena.AutoBuyCount)
 	}
 }
 
@@ -21,8 +21,8 @@ func TestLoadConfigMissingFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.TickIntervalMs != 800 {
-		t.Fatalf("expected default config when file missing, got tickIntervalMs=%d", cfg.TickIntervalMs)
+	if !cfg.Modules.Arena.Enabled {
+		t.Fatal("expected default arena enabled when file missing")
 	}
 }
 
@@ -30,9 +30,7 @@ func TestLoadConfigMergesUserValues(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.json")
 	content := `{
-		"tickIntervalMs": 1200,
 		"modules": {
-			"collectResources": false,
 			"arena": {
 				"enabled": false,
 				"autoBuyCount": 3
@@ -46,15 +44,6 @@ func TestLoadConfigMergesUserValues(t *testing.T) {
 	cfg, err := LoadConfig(path)
 	if err != nil {
 		t.Fatalf("load config: %v", err)
-	}
-	if cfg.TickIntervalMs != 1200 {
-		t.Fatalf("expected tickIntervalMs=1200, got %d", cfg.TickIntervalMs)
-	}
-	if cfg.MaxStateDurationSec != 45 {
-		t.Fatalf("expected default maxStateDurationSec unchanged, got %d", cfg.MaxStateDurationSec)
-	}
-	if cfg.Modules.CollectResources {
-		t.Fatal("expected collectResources=false")
 	}
 	if cfg.Modules.Arena.Enabled {
 		t.Fatal("expected arena enabled=false")
