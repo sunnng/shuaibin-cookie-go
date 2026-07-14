@@ -15,6 +15,10 @@ type arenaCtx struct {
 	selectedOpponent *OpponentInfo
 }
 
+// refreshOCRBackoff is used when free-refresh countdown OCR fails, so CheckReady
+// does not immediately re-enter the arena.
+const refreshOCRBackoff = 60 * time.Second
+
 func (t *Task) handlers() map[string]statemachine.Handler {
 	return map[string]statemachine.Handler{
 		"detect": func(sm *statemachine.Machine) statemachine.Result {
@@ -44,7 +48,11 @@ func (t *Task) handlers() map[string]statemachine.Handler {
 				ctx.task.session.Medals = medal
 				ctx.task.session.Tickets = ticket
 			}
-			trophies, _ := ctx.task.page.ReadTrophyCount()
+			trophies, ok := ctx.task.page.ReadTrophyCount()
+			if !ok {
+				logger.Warnf("[Arena] trophy OCR failed, retry")
+				return statemachine.Retry{}
+			}
 			ctx.task.session.Trophies = trophies
 			logger.Infof("[Arena] sync medals=%d tickets=%d trophies=%d", medal, ticket, trophies)
 			return statemachine.Next("check")
@@ -89,14 +97,27 @@ func (t *Task) handlers() map[string]statemachine.Handler {
 				ctx.task.session.ClearNextFreeRefresh()
 				return statemachine.Next("selectOpponent")
 			}
-			// Read countdown and persist
+			// Read countdown and persist; OCR miss uses a short backoff to avoid thrash.
 			if d, ok := ctx.task.page.ReadRefreshCountdown(); ok {
 				ctx.task.session.SetNextFreeRefreshAt(time.Now().Add(d))
+			} else {
+				logger.Warnf("[Arena] refresh countdown OCR failed, backoff %v", refreshOCRBackoff)
+				ctx.task.session.SetNextFreeRefreshAt(time.Now().Add(refreshOCRBackoff))
 			}
 			return statemachine.Next("leave")
 		},
 		"teamSelect": func(sm *statemachine.Machine) statemachine.Result {
-			// Placeholder: tap selected opponent and wait team select
+			ctx := sm.Ctx.(*arenaCtx)
+			if ctx.selectedOpponent == nil {
+				return statemachine.Fatal{Err: errors.New("未选中对手")}
+			}
+			ctx.task.page.TapOpponentSite(ctx.selectedOpponent.Site)
+			if ctx.task.page.HasTeamSelectPage() {
+				if !ctx.task.page.WaitTeamSelect(15 * time.Second) {
+					return statemachine.Retry{}
+				}
+			}
+			ctx.task.page.TapStartBattle()
 			return statemachine.Next("battle")
 		},
 		"battle": func(sm *statemachine.Machine) statemachine.Result {

@@ -14,6 +14,9 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.Modules.Arena.AutoBuyCount != 0 {
 		t.Fatalf("expected autoBuyCount=0, got %d", cfg.Modules.Arena.AutoBuyCount)
 	}
+	if cfg.Modules.Collect.Enabled {
+		t.Fatal("collect should be disabled by default")
+	}
 }
 
 func TestLoadConfigMissingFile(t *testing.T) {

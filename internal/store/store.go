@@ -86,3 +86,11 @@ func (s *Store) Delete(key string) error {
 	delete(s.data, key)
 	return s.save()
 }
+
+// ClearAll 清空全部业务 KV 并写回磁盘。
+func (s *Store) ClearAll() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.data = make(map[string]any)
+	return s.save()
+}

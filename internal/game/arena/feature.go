@@ -6,10 +6,17 @@ import (
 )
 
 type Feature struct {
+	Entry      EntryFeature
 	Lobby      LobbyFeature
 	TeamSelect TeamSelectFeature
 	Settlement SettlementFeature
 	Dialogs    DialogsFeature
+}
+
+// EntryFeature locates the arena entrance on the adventure page via OCR.
+type EntryFeature struct {
+	Region  screen.Region // OCR search region
+	Keyword string        // empty → treated as "王国竞技场" in TapEntry
 }
 
 type LobbyFeature struct {
@@ -21,11 +28,11 @@ type LobbyFeature struct {
 }
 
 type LobbyActions struct {
-	Close            screen.Region
-	FreeRefresh      screen.Point
-	BuyTicket        screen.Point
+	Close            screen.Region // 关闭大厅；区域内随机点
+	FreeRefresh      screen.Region
+	BuyTicket        screen.Region
 	BuyTicketSlider  action.Swipe
-	BuyTicketConfirm screen.Point
+	BuyTicketConfirm screen.Region
 }
 
 type LobbyReads struct {
@@ -46,7 +53,6 @@ type OpponentFeature struct {
 	ResultColors ResultColors  // 已战颜色 {Win,Draw,Lose}
 	ResultSim    float32       // 战绩 MatchColor 相似度
 	ClickOffset  screen.Point  // 相对锚点的点击偏移；锚点本身可点则 (0,0)
-	NumberOCR    screen.OCRCfg // 奖杯数字 OCR 配置（占位，留待 OCR 不稳时补参）
 }
 
 // ColorFind 对齐 images.FindColor / FindMultiColors[All] 的全部静态参数。
@@ -70,7 +76,7 @@ type TeamSelectFeature struct {
 }
 
 type TeamSelectActions struct {
-	StartBattle screen.Point
+	StartBattle screen.Region // 开战按钮区域；随机点
 }
 
 type SettlementFeature struct {
@@ -95,7 +101,7 @@ type DialogsFeature struct {
 
 type DialogDef struct {
 	Identify screen.Feature
-	Confirm  screen.Point
+	Confirm  screen.Region // 确认按钮区域；随机点
 }
 
 func DefaultFeature() *Feature {

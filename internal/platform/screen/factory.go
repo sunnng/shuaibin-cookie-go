@@ -24,3 +24,6 @@ func (s *stubDetector) MatchImage(region Region, template []byte, sim float32) (
 	return Point{}, false
 }
 func (s *stubDetector) OCRText(region Region) string { return "" }
+func (s *stubDetector) FindOCRText(region Region, keyword string) (Point, bool) {
+	return Point{}, false
+}

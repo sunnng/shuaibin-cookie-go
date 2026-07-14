@@ -137,8 +137,13 @@ func UI_创建左侧父标签页(id string, titles []string, pages []func()) {
 		if btnW < 40 {
 			btnW = 40
 		}
-
-		if imgui.ButtonV(label+"##"+id+"_parent_"+fmt.Sprint(i), imgui.Vec2{X: btnW + 5, Y: style.Height + 5}) {
+		labelSz := measureLabelSize(label)
+		btnH := style.Height + 5
+		if need := labelSz.Y + 20; need > btnH {
+			btnH = need
+		}
+		// 左栏过窄时用换行不安全，至少保证高度够；宽度不足则略增 child 内可用感（文本仍可能紧）
+		if imgui.ButtonV(label+"##"+id+"_parent_"+fmt.Sprint(i), imgui.Vec2{X: btnW + 5, Y: btnH}) {
 			uiTabActiveMap[id] = i
 		}
 
@@ -186,13 +191,20 @@ func UI_创建标签栏(id string, titles []string, pages []func()) {
 		uiTabActiveMap[id] = 0
 	}
 
-	oldFontScale := curTabStyle.FontScale
-	imgui.SetWindowFontScale(curTabStyle.FontScale)
-	defer imgui.SetWindowFontScale(oldFontScale)
-
 	style := curTabStyle
 
-	tabBarHeight := style.Height + 20
+	const (
+		tabPadX = float32(14)
+		tabPadY = float32(10)
+	)
+	imgui.PushStyleVarVec2(imgui.StyleVarFramePadding, imgui.Vec2{X: tabPadX, Y: tabPadY})
+	imgui.PushStyleVarVec2(imgui.StyleVarButtonTextAlign, imgui.Vec2{X: 0.5, Y: 0.5})
+	imgui.SetWindowFontScale(style.FontScale)
+	tabH := imgui.FrameHeight()
+	if style.Height > tabH {
+		tabH = style.Height
+	}
+	tabBarHeight := tabH + 20
 
 	imgui.PushStyleColorVec4(imgui.ColChildBg, imgui.Vec4{X: 1, Y: 1, Z: 1, W: 0.06})
 	imgui.PushStyleColorVec4(imgui.ColBorder, imgui.Vec4{X: 1, Y: 1, Z: 1, W: 0.14})
@@ -231,14 +243,19 @@ func UI_创建标签栏(id string, titles []string, pages []func()) {
 			imgui.PushStyleVarFloat(imgui.StyleVarFrameBorderSize, 1)
 			imgui.PushStyleVarFloat(imgui.StyleVarFrameRounding, 10)
 
-			tabW := float32(len([]rune(title)))*14 + style.PaddingX + 55
+			labelSz := measureLabelSize(title)
+			tabW := labelSz.X + style.PaddingX + tabPadX*2
 			if tabW < style.MinWidth {
 				tabW = style.MinWidth
+			}
+			thisH := tabH
+			if need := labelSz.Y + tabPadY*2; need > thisH {
+				thisH = need
 			}
 
 			if imgui.ButtonV(title+"##"+id+"_child_"+fmt.Sprint(i), imgui.Vec2{
 				X: tabW,
-				Y: style.Height,
+				Y: thisH,
 			}) {
 				uiTabActiveMap[id] = i
 			}
@@ -256,6 +273,8 @@ func UI_创建标签栏(id string, titles []string, pages []func()) {
 
 	imgui.PopStyleVarV(2)
 	imgui.PopStyleColorV(2)
+	imgui.SetWindowFontScale(1.0)
+	imgui.PopStyleVarV(2) // FramePadding + ButtonTextAlign
 
 	imgui.Spacing()
 
@@ -316,7 +335,7 @@ func UI_EnableSlidingScroll(speed float32) {
 func UI_创建按钮(id string, showName string, callback func(), opts ...interface{}) {
 	width := float32(-2)
 	height := float32(-2)
-	fontSize := float32(1.0)
+	fontSize := float32(0) // 0=不改 WindowFontScale；>0 为缩放因子
 	textColor := "#ffffff"
 
 	if len(opts) > 0 {
@@ -340,25 +359,51 @@ func UI_创建按钮(id string, showName string, callback func(), opts ...interf
 		}
 	}
 
-	// 计算按钮尺寸
+	scaled := false
+	if fontSize > 0 {
+		imgui.SetWindowFontScale(fontSize)
+		scaled = true
+	}
+
+	const (
+		padX = float32(16)
+		padY = float32(12)
+	)
+	imgui.PushStyleVarVec2(imgui.StyleVarFramePadding, imgui.Vec2{X: padX, Y: padY})
+	imgui.PushStyleVarVec2(imgui.StyleVarButtonTextAlign, imgui.Vec2{X: 0.5, Y: 0.5})
+	imgui.PushStyleVarFloat(imgui.StyleVarFrameBorderSize, 1)
+	imgui.PushStyleVarFloat(imgui.StyleVarFrameRounding, 10)
+
+	// 用 CJK 保底测宽，避免中文在按钮内横向/纵向溢出
 	avail := imgui.ContentRegionAvail()
 	availW, availH := avail.X, avail.Y
+	fitW, fitH := fitButtonSize(showName, padX, padY)
+	minH := fitH
 	var btnW, btnH float32
 	switch {
 	case width == -1:
 		btnW = availW
 	case width == -2:
-		btnW = float32(len([]rune(showName)))*18 + 65
+		btnW = fitW
+		if btnW < 64 {
+			btnW = 64
+		}
 	default:
 		btnW = width
+		if btnW < fitW {
+			btnW = fitW // 固定宽度不足以放下文字时抬高，防止裁切
+		}
 	}
 	switch {
 	case height == -1:
 		btnH = availH
 	case height == -2:
-		btnH = 50
+		btnH = fitH
 	default:
 		btnH = height
+	}
+	if btnH > 0 && btnH < minH {
+		btnH = minH
 	}
 
 	imgui.PushStyleColorVec4(imgui.ColButton, imgui.Vec4{X: 1, Y: 1, Z: 1, W: 0.10})
@@ -366,19 +411,18 @@ func UI_创建按钮(id string, showName string, callback func(), opts ...interf
 	imgui.PushStyleColorVec4(imgui.ColButtonActive, imgui.Vec4{X: 0.72, Y: 0.86, Z: 1, W: 0.35})
 	imgui.PushStyleColorVec4(imgui.ColBorder, imgui.Vec4{X: 1, Y: 1, Z: 1, W: 0.18})
 	imgui.PushStyleColorVec4(imgui.ColText, HexToVec4(textColor))
-	imgui.PushStyleVarFloat(imgui.StyleVarFrameBorderSize, 1)
-	imgui.PushStyleVarFloat(imgui.StyleVarFrameRounding, 10)
 
-	imgui.SetWindowFontScale(fontSize)
 	if imgui.ButtonV(showName+"##"+id, imgui.Vec2{X: btnW, Y: btnH}) {
 		if callback != nil {
 			callback()
 		}
 	}
-	imgui.SetWindowFontScale(1.0)
 
-	imgui.PopStyleVarV(2)
 	imgui.PopStyleColorV(5)
+	imgui.PopStyleVarV(4)
+	if scaled {
+		imgui.SetWindowFontScale(1.0)
+	}
 }
 
 // ==================== 倒计时按钮状态 ====================

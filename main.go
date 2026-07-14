@@ -6,6 +6,7 @@ import (
 
 	"app/internal/config"
 	"app/internal/game/arena"
+	"app/internal/game/collect"
 	"app/internal/game/common/kingdom"
 	"app/internal/guard"
 	"app/internal/logger"
@@ -34,13 +35,7 @@ func main() {
 		OnStart: func() (run func() error, pause, resume, stop func()) {
 			ui.ApplyToConfig(uiStore, cfg)
 			rt := buildRuntime(cfg)
-			return func() error {
-					err := rt.Run()
-					return err
-				},
-				rt.Pause,
-				rt.Resume,
-				rt.Stop
+			return rt.Run, rt.Pause, rt.Resume, rt.Stop
 		},
 		OnExit: func() {
 			time.Sleep(500 * time.Millisecond)
@@ -51,16 +46,20 @@ func main() {
 	ui.RunShell(ui.ShellOptions{
 		Title:            "Superbin Cookie",
 		ConfigPath:       "/sdcard/shuaibin-cookie/ui.json",
+		DataStorePath:    "/sdcard/shuaibin-cookie/store.json",
 		Store:            uiStore,
 		Controller:       ctrl,
 		OpenPanelOnStart: true,
+		Reseed: func(s *ui.Store) {
+			ui.SeedFromConfig(s, cfg)
+		},
 	})
 }
 
 func buildRuntime(cfg *config.Config) *runtime.Runtime {
 	det := screen.NewDetector(0)
 	exec := action.NewExecutor(0)
-	s := store.New("data/store.json")
+	s := store.New("/sdcard/shuaibin-cookie/store.json")
 	g := guard.New(det)
 	sched := scheduler.New()
 
@@ -94,7 +93,21 @@ func buildRuntime(cfg *config.Config) *runtime.Runtime {
 		Action: arenaTask.Run,
 	})
 
-	return runtime.New(runtime.Options{
+	collectFeature := collect.DefaultFeature()
+	collectSession := collect.NewSession()
+	collectTask := collect.NewTask(
+		&cfg.Modules.Collect,
+		det, exec, collectFeature, collectSession,
+	)
+	sched.Build(scheduler.TaskOpts{
+		Name: "收集",
+		CheckEnabled: func() bool {
+			return cfg.Modules.Collect.Enabled
+		},
+		Action: collectTask.Run,
+	})
+
+	rt := runtime.New(runtime.Options{
 		Scheduler: sched,
 		Guard:     g,
 		RuntimeCfg: runtime.RuntimeConfig{
@@ -104,4 +117,7 @@ func buildRuntime(cfg *config.Config) *runtime.Runtime {
 			StopOnError:   false,
 		},
 	})
+	arenaTask.SetShouldStop(rt.IsStopped)
+	collectTask.SetShouldStop(rt.IsStopped)
+	return rt
 }

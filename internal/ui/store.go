@@ -84,7 +84,7 @@ func (s *Store) SaveConfig(path string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, b, 0o777)
+	return os.WriteFile(path, b, 0o644)
 }
 
 func (s *Store) LoadConfig(path string) error {
@@ -100,4 +100,9 @@ func (s *Store) LoadConfig(path string) error {
 		s.values[k] = v
 	}
 	return nil
+}
+
+// Clear 清空内存中的全部控件状态。
+func (s *Store) Clear() {
+	s.values = map[string]interface{}{}
 }

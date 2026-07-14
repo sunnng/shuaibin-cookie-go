@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"app/internal/config"
+	"app/internal/logger"
 	"app/internal/platform/action"
 	"app/internal/platform/screen"
 )
@@ -30,6 +31,9 @@ func NewPage(det screen.Detector, exec action.Executor, f *Feature) *Page {
 
 func (p *Page) IsLobby() bool {
 	id := p.feature.Lobby.Identify
+	if id.Colors == "" {
+		return false
+	}
 	return p.detector.MatchMultiColor(id.Colors, id.Sim)
 }
 
@@ -101,8 +105,7 @@ func (p *Page) IsFreeRefresh() bool {
 }
 
 func (p *Page) TapFreeRefresh() {
-	pt := p.feature.Lobby.Actions.FreeRefresh
-	_ = p.executor.Tap(action.Point{X: pt.X, Y: pt.Y})
+	_ = p.executor.Tap(tapRegion(p.feature.Lobby.Actions.FreeRefresh))
 	p.executor.Sleep(1000)
 }
 
@@ -112,24 +115,160 @@ func (p *Page) ReadRefreshCountdown() (time.Duration, bool) {
 }
 
 func (p *Page) BuyTicket() {
-	btn := p.feature.Lobby.Actions.BuyTicket
-	_ = p.executor.Tap(action.Point{X: btn.X, Y: btn.Y})
+	_ = p.executor.Tap(tapRegion(p.feature.Lobby.Actions.BuyTicket))
 	p.executor.Sleep(1500)
 	s := p.feature.Lobby.Actions.BuyTicketSlider
 	_ = p.executor.Swipe(s.From, s.To, s.DurationMs)
 	p.executor.Sleep(1000)
-	confirm := p.feature.Lobby.Actions.BuyTicketConfirm
-	_ = p.executor.Tap(action.Point{X: confirm.X, Y: confirm.Y})
+	_ = p.executor.Tap(tapRegion(p.feature.Lobby.Actions.BuyTicketConfirm))
 }
+
+// TapEntry OCR-taps the arena entrance on the adventure page.
+func (p *Page) TapEntry() bool {
+	kw := strings.TrimSpace(p.feature.Entry.Keyword)
+	if kw == "" {
+		kw = "王国竞技场"
+	}
+	pt, ok := p.detector.FindOCRText(p.feature.Entry.Region, kw)
+	if !ok {
+		logger.Warnf("[Arena] entry OCR miss keyword=%q region=%+v", kw, p.feature.Entry.Region)
+		return false
+	}
+	_ = p.executor.Tap(action.Point{X: pt.X, Y: pt.Y})
+	p.executor.Sleep(1500)
+	return true
+}
+
+// TapLobbyClose taps the lobby close control once (does not require ending in lobby).
+func (p *Page) TapLobbyClose() {
+	_ = p.executor.Tap(tapRegion(p.feature.Lobby.Actions.Close))
+	p.executor.Sleep(800)
+}
+
+// TapToLobby taps lobby Close until IsLobby or retries/timeout exhausted.
+func (p *Page) TapToLobby() bool {
+	if p.IsLobby() {
+		return true
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for i := 0; i < 3 && time.Now().Before(deadline); i++ {
+		p.TapLobbyClose()
+		if p.IsLobby() {
+			return true
+		}
+	}
+	return p.IsLobby()
+}
+
+func (p *Page) TapOpponentSite(site action.Point) {
+	_ = p.executor.Tap(site)
+	p.executor.Sleep(1000)
+}
+
+func (p *Page) IsTeamSelect() bool {
+	id := p.feature.TeamSelect.Identify
+	if id.Colors == "" {
+		return false
+	}
+	return p.detector.MatchMultiColor(id.Colors, id.Sim)
+}
+
+// HasTeamSelectPage reports whether TeamSelect.Identify is configured.
+func (p *Page) HasTeamSelectPage() bool {
+	return p.feature.TeamSelect.Identify.Colors != ""
+}
+
+func (p *Page) WaitTeamSelect(timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if p.IsTeamSelect() {
+			return true
+		}
+		p.executor.Sleep(500)
+	}
+	return false
+}
+
+func (p *Page) TapStartBattle() {
+	_ = p.executor.Tap(tapRegion(p.feature.TeamSelect.Actions.StartBattle))
+	p.executor.Sleep(1000)
+}
+
+const (
+	battleTimeout       = 3 * time.Minute
+	leaveToLobbyTimeout = 30 * time.Second
+)
 
 func (p *Page) RunBattle() (string, bool) {
-	// Placeholder: wait team select, start battle, handle dialogs, wait settlement, read result, leave
-	return "胜利", true
+	id := p.feature.Settlement.Identify
+	if id.Colors == "" {
+		logger.Warnf("[Arena] Settlement.Identify not configured")
+		return "", false
+	}
+	deadline := time.Now().Add(battleTimeout)
+	for time.Now().Before(deadline) {
+		if p.detector.MatchMultiColor(id.Colors, id.Sim) {
+			break
+		}
+		p.executor.Sleep(500)
+	}
+	if !p.detector.MatchMultiColor(id.Colors, id.Sim) {
+		logger.Warnf("[Arena] settlement not reached before timeout")
+		return "", false
+	}
+	resultR := p.feature.Settlement.Reads.Result
+	text := p.detector.OCRText(screen.Region{X1: resultR.X1, Y1: resultR.Y1, X2: resultR.X2, Y2: resultR.Y2})
+	result, ok := parseBattleResult(text)
+	if !ok {
+		logger.Warnf("[Arena] battle result OCR failed text=%q", text)
+		return "", false
+	}
+	if !p.leaveSettlementToLobby() {
+		return "", false
+	}
+	return result, true
 }
 
-func (p *Page) TapToLobby() bool {
-	// Placeholder: tap leave button until lobby
-	return true
+func (p *Page) leaveSettlementToLobby() bool {
+	leaveID := p.feature.Settlement.Actions.LeaveIdentify
+	leaveR := p.feature.Settlement.Actions.Leave
+	deadline := time.Now().Add(leaveToLobbyTimeout)
+	for time.Now().Before(deadline) {
+		if p.IsLobby() {
+			return true
+		}
+		if leaveID.Colors != "" && !p.detector.MatchMultiColor(leaveID.Colors, leaveID.Sim) {
+			p.executor.Sleep(400)
+			continue
+		}
+		_ = p.executor.Tap(tapRegion(screen.Region{X1: leaveR.X1, Y1: leaveR.Y1, X2: leaveR.X2, Y2: leaveR.Y2}))
+		p.executor.Sleep(800)
+		if p.IsLobby() {
+			return true
+		}
+		if p.TapToLobby() {
+			return true
+		}
+	}
+	return p.IsLobby()
+}
+
+func parseBattleResult(s string) (string, bool) {
+	s = strings.TrimSpace(s)
+	switch {
+	case strings.Contains(s, "胜利"):
+		return "胜利", true
+	case strings.Contains(s, "平局"):
+		return "平局", true
+	case strings.Contains(s, "失败"):
+		return "失败", true
+	default:
+		return "", false
+	}
+}
+
+func tapRegion(r screen.Region) action.Point {
+	return action.RandomIn(action.Region{X1: r.X1, Y1: r.Y1, X2: r.X2, Y2: r.Y2})
 }
 
 func offsetRegion(rel screen.Region, a screen.Point) screen.Region {
@@ -146,12 +285,13 @@ func readInt(s string) (int, bool) {
 }
 
 var (
-	reColon = regexp.MustCompile(`^\s*(\d{1,3}):(\d{1,2})\s*$`)
-	reMin   = regexp.MustCompile(`(\d+)\s*分`)
-	reSec   = regexp.MustCompile(`(\d+)\s*秒`)
+	reColon  = regexp.MustCompile(`^\s*(\d{1,3}):(\d{1,2})\s*$`)
+	reDigits = regexp.MustCompile(`^\s*(\d+)\s*$`)
+	reMin    = regexp.MustCompile(`(\d+)\s*分`)
+	reSec    = regexp.MustCompile(`(\d+)\s*秒`)
 )
 
-// parseCountdown 解析刷新倒计时。支持 "5分30秒"/"30秒"/"5分"/"05:30"。
+// parseCountdown 解析刷新倒计时。支持 "5分30秒"/"30秒"/"5分"/"05:30"/"330"。
 // 抓不到数字或合计为 0 → (0, false)。
 func parseCountdown(s string) (time.Duration, bool) {
 	if m := reColon.FindStringSubmatch(s); m != nil {
@@ -162,6 +302,13 @@ func parseCountdown(s string) (time.Duration, bool) {
 			return 0, false
 		}
 		return d, true
+	}
+	if m := reDigits.FindStringSubmatch(s); m != nil {
+		sec, _ := strconv.Atoi(m[1])
+		if sec == 0 {
+			return 0, false
+		}
+		return time.Duration(sec) * time.Second, true
 	}
 	total := 0
 	if m := reMin.FindStringSubmatch(s); m != nil {

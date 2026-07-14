@@ -1,11 +1,15 @@
 package statemachine
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"app/internal/logger"
 )
+
+// ErrStopped is returned when RunOptions.ShouldStop becomes true.
+var ErrStopped = errors.New("stopped")
 
 type Result interface{ result() }
 
@@ -46,9 +50,10 @@ type Options struct {
 }
 
 type RunOptions struct {
-	Interval time.Duration
-	Guard    func() bool
-	Label    string
+	Interval   time.Duration
+	Guard      func() bool
+	ShouldStop func() bool
+	Label      string
 }
 
 func New() *Machine { return &Machine{} }
@@ -84,13 +89,20 @@ func (m *Machine) Run(handlers map[string]Handler, runOpts RunOptions) error {
 		label, m.currentState, m.maxRetry, m.maxError, m.timeout)
 
 	for {
+		if runOpts.ShouldStop != nil && runOpts.ShouldStop() {
+			logger.Infof("[StateMachine] [%s] stopped at state=%s", label, m.currentState)
+			return fmt.Errorf("statemachine [%s]: %w", label, ErrStopped)
+		}
+
 		m.ticks++
 		if m.timeout > 0 && time.Since(m.startTime) > m.timeout {
 			return fmt.Errorf("statemachine [%s] timeout after %v", label, m.timeout)
 		}
 
 		if runOpts.Guard != nil && runOpts.Guard() {
-			time.Sleep(interval)
+			if err := m.sleepInterruptible(interval, runOpts, false); err != nil {
+				return err
+			}
 			continue
 		}
 
@@ -143,24 +155,38 @@ func (m *Machine) Run(handlers map[string]Handler, runOpts RunOptions) error {
 			sleep = m.retryInterval
 		}
 
-		if runOpts.Guard != nil {
-			deadline := time.Now().Add(sleep)
-			step := 500 * time.Millisecond
-			for time.Now().Before(deadline) {
-				if runOpts.Guard() {
-					break
-				}
-				remaining := time.Until(deadline)
-				if remaining <= 0 {
-					break
-				}
-				if remaining > step {
-					remaining = step
-				}
-				time.Sleep(remaining)
-			}
-		} else {
-			time.Sleep(sleep)
+		if err := m.sleepInterruptible(sleep, runOpts, runOpts.Guard != nil); err != nil {
+			return err
 		}
 	}
+}
+
+func (m *Machine) sleepInterruptible(d time.Duration, runOpts RunOptions, breakOnGuard bool) error {
+	label := runOpts.Label
+	if label == "" {
+		label = "statemachine"
+	}
+	deadline := time.Now().Add(d)
+	step := 500 * time.Millisecond
+	if d > 0 && d < step {
+		step = d
+	}
+	for time.Now().Before(deadline) {
+		if runOpts.ShouldStop != nil && runOpts.ShouldStop() {
+			logger.Infof("[StateMachine] [%s] stopped during sleep at state=%s", label, m.currentState)
+			return fmt.Errorf("statemachine [%s]: %w", label, ErrStopped)
+		}
+		if breakOnGuard && runOpts.Guard != nil && runOpts.Guard() {
+			return nil
+		}
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			break
+		}
+		if remaining > step {
+			remaining = step
+		}
+		time.Sleep(remaining)
+	}
+	return nil
 }

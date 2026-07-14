@@ -28,6 +28,9 @@ func (m *mockDetector) MatchImage(region screen.Region, template []byte, sim flo
 	return screen.Point{}, false
 }
 func (m *mockDetector) OCRText(region screen.Region) string { return "" }
+func (m *mockDetector) FindOCRText(region screen.Region, keyword string) (screen.Point, bool) {
+	return screen.Point{}, false
+}
 
 func TestGuardCheck(t *testing.T) {
 	g := New(&mockDetector{match: true})

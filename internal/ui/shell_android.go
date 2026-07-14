@@ -22,22 +22,28 @@ func RunShell(opts ShellOptions) {
 	if opts.CountdownSec <= 0 {
 		opts.CountdownSec = 300
 	}
+	ConfigureCookiePanel(CookiePanelOptions{
+		ConfigPath:    opts.ConfigPath,
+		DataStorePath: opts.DataStorePath,
+		Controller:    opts.Controller,
+		Reseed:        opts.Reseed,
+	})
 	if opts.Render == nil {
 		opts.Render = DefaultCookiePanel
 	}
 	openPanel := opts.OpenPanelOnStart
 
 	_ = imgui.Init()
+	ApplyIndustrialTheme()
+	EnsureBuiltinModules()
 	ball := NewFloatingBall()
 	loaded := false
-
-	titleBgActive := HexToVec4("#686868")
-	imgui.PushStyleColorVec4(imgui.ColTitleBgActive, titleBgActive)
 
 	imgui.Run(func() {
 		if !loaded {
 			loaded = true
 			_ = opts.Store.LoadConfig(opts.ConfigPath)
+			SeedHubDefaults(opts.Store)
 		}
 
 		state := StateIdle

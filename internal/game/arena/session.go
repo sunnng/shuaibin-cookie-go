@@ -1,7 +1,6 @@
 package arena
 
 import (
-	"fmt"
 	"time"
 
 	"app/internal/config"
@@ -35,15 +34,6 @@ func (s *Session) IsReachMaxBattles(cfg *config.Arena) bool {
 		return false
 	}
 	return s.TotalBattles() >= *cfg.MaxBattles
-}
-
-func (s *Session) Describe() string {
-	total := s.TotalBattles()
-	rate := 0.0
-	if total > 0 {
-		rate = float64(s.Wins) / float64(total) * 100
-	}
-	return fmt.Sprintf("win rate: %.2f%% (%d/%d)", rate, s.Wins, total)
 }
 
 func (s *Session) SetNextFreeRefreshAt(at time.Time) {

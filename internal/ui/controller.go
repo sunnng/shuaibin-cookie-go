@@ -110,7 +110,6 @@ func (c *SessionController) Resume() {
 func (c *SessionController) Stop() {
 	c.mu.Lock()
 	stop := c.stop
-	myGen := c.gen
 	if c.state == StateIdle {
 		c.mu.Unlock()
 		return
@@ -119,12 +118,9 @@ func (c *SessionController) Stop() {
 	if stop != nil {
 		stop()
 	}
-	c.mu.Lock()
-	if c.gen == myGen {
-		c.state = StateIdle
-		c.pause, c.resume, c.stop = nil, nil, nil
-	}
-	c.mu.Unlock()
+	// Do not flip to Idle here: wait for the run goroutine to exit so a
+	// subsequent Start cannot spawn a second runtime while the old one still
+	// owns the device (e.g. mid state-machine tick).
 }
 
 func (c *SessionController) Exit() {

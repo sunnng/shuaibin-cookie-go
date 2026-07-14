@@ -11,3 +11,13 @@ func TestStubFindMultiColorsAllReturnsNil(t *testing.T) {
 		t.Fatalf("stub FindMultiColorsAll should return nil, got %v", got)
 	}
 }
+
+func TestStubFindOCRTextReturnsFalse(t *testing.T) {
+	d := NewDetector(0)
+	if _, ok := d.FindOCRText(Region{0, 0, 100, 100}, "王国竞技场"); ok {
+		t.Fatal("stub FindOCRText should return false")
+	}
+	if _, ok := d.FindOCRText(Region{0, 0, 100, 100}, ""); ok {
+		t.Fatal("empty keyword should return false")
+	}
+}

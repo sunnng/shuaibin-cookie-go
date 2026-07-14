@@ -100,3 +100,28 @@ func TestMachineFatal(t *testing.T) {
 		t.Fatal("expected fatal error")
 	}
 }
+
+func TestMachineShouldStop(t *testing.T) {
+	m := New()
+	m.Init("a", Options{Timeout: 5 * time.Second})
+	calls := 0
+	handlers := map[string]Handler{
+		"a": func(sm *Machine) Result {
+			calls++
+			return Keep{}
+		},
+	}
+	stopAfter := 2
+	err := m.Run(handlers, RunOptions{
+		Interval: 10 * time.Millisecond,
+		ShouldStop: func() bool {
+			return calls >= stopAfter
+		},
+	})
+	if !errors.Is(err, ErrStopped) {
+		t.Fatalf("want ErrStopped, got %v", err)
+	}
+	if calls < stopAfter {
+		t.Fatalf("want at least %d handler calls before stop, got %d", stopAfter, calls)
+	}
+}

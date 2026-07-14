@@ -11,22 +11,14 @@ type Region struct {
 	X1, Y1, X2, Y2 int
 }
 
-// Feature is a placeholder for a screen feature descriptor.
-type Feature struct{
+// Rect is an alias for Region (click/bounds rectangles share the same shape).
+type Rect = Region
+
+// Feature describes a multi-color screen identity check.
+type Feature struct {
 	Colors string // 多点比色串
-    Sim    float32
+	Sim    float32
 }
-
-// Rect is a placeholder rectangle for UI element bounds.
-type Rect struct {
-	X1, Y1, X2, Y2 int
-}
-
-// FindDef is a placeholder for a color/image find definition.
-type FindDef struct{}
-
-// OCRCfg is a placeholder for OCR region and language configuration.
-type OCRCfg struct{}
 
 type Detector interface {
 	Capture() *image.NRGBA
@@ -36,4 +28,7 @@ type Detector interface {
 	MatchMultiColor(colors string, sim float32) bool
 	MatchImage(region Region, template []byte, sim float32) (Point, bool)
 	OCRText(region Region) string
+	// FindOCRText returns the screen-absolute center of the first OCR hit whose
+	// label contains keyword. Empty keyword → (0, false).
+	FindOCRText(region Region, keyword string) (Point, bool)
 }

@@ -62,6 +62,9 @@ func TestParseCountdown(t *testing.T) {
 		{"30秒", 30 * time.Second, true},
 		{"5分", 300 * time.Second, true},
 		{"05:30", 330 * time.Second, true},
+		{"330", 330 * time.Second, true},
+		{"30", 30 * time.Second, true},
+		{"0", 0, false},
 		{"", 0, false},
 		{"abc", 0, false},
 		{"0秒", 0, false},
@@ -80,6 +83,7 @@ type mockDetector struct {
 	ocrByKey   map[string]string // key: "x1,y1,x2,y2"
 	matchByKey map[string]bool   // key: "x,y,color"
 	anchors    []screen.Point
+	findOCR    func(r screen.Region, keyword string) (screen.Point, bool)
 }
 
 func (m *mockDetector) Capture() *image.NRGBA { return nil }
@@ -98,6 +102,15 @@ func (m *mockDetector) MatchImage(r screen.Region, t []byte, s float32) (screen.
 }
 func (m *mockDetector) OCRText(r screen.Region) string {
 	return m.ocrByKey[fmt.Sprintf("%d,%d,%d,%d", r.X1, r.Y1, r.X2, r.Y2)]
+}
+func (m *mockDetector) FindOCRText(r screen.Region, keyword string) (screen.Point, bool) {
+	if keyword == "" {
+		return screen.Point{}, false
+	}
+	if m.findOCR != nil {
+		return m.findOCR(r, keyword)
+	}
+	return screen.Point{}, false
 }
 
 // ---- mock Executor ----
@@ -126,7 +139,7 @@ func newLobbyFeature() *Feature {
 	f.Lobby.Reads.Trophy = screen.Region{X1: 1, Y1: 40, X2: 100, Y2: 70}
 	f.Lobby.Reads.Refresh = screen.Region{X1: 1, Y1: 80, X2: 100, Y2: 110}
 	f.Lobby.Reads.FreeRefresh = screen.Region{X1: 1, Y1: 120, X2: 100, Y2: 150}
-	f.Lobby.Actions.FreeRefresh = screen.Point{X: 300, Y: 800}
+	f.Lobby.Actions.FreeRefresh = screen.Region{X1: 300, Y1: 800, X2: 300, Y2: 800}
 	f.Lobby.Gestures.SwipeLeft = action.Swipe{
 		From: action.Point{X: 1400, Y: 450}, To: action.Point{X: 200, Y: 450}, DurationMs: 300}
 	return f

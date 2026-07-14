@@ -18,10 +18,3 @@ func (e *AndroidExecutor) Home() error {
 func (e *AndroidExecutor) Sleep(ms int) {
 	utils.Sleep(ms)
 }
-
-func TapBackMultiple(e Executor, times int) {
-	for i := 0; i < times; i++ {
-		_ = e.Back()
-		e.Sleep(500)
-	}
-}

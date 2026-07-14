@@ -5,6 +5,9 @@
       "maxBattles": null,
       "autoBuyCount": 0,
       "trophyDiff": 0
+    },
+    "collect": {
+      "enabled": false
     }
   }
 }

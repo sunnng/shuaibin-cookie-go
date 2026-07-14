@@ -26,6 +26,10 @@ type page interface {
 	BuyTicket()
 	RunBattle() (string, bool)
 	TapToLobby() bool
+	TapOpponentSite(site action.Point)
+	HasTeamSelectPage() bool
+	WaitTeamSelect(timeout time.Duration) bool
+	TapStartBattle()
 }
 
 // route is the interface required by Task for entering and leaving the arena.
@@ -42,6 +46,7 @@ type Task struct {
 	sm          *statemachine.Machine
 	kingdomPage *kingdom.Page
 	guard       *guard.Guard
+	shouldStop  func() bool
 }
 
 func NewTask(
@@ -64,6 +69,12 @@ func NewTask(
 		kingdomPage: kingdomPage,
 		guard:       guard,
 	}
+}
+
+// SetShouldStop wires a stop probe (typically runtime.IsStopped) so the
+// task-level state machine can exit between ticks when the session stops.
+func (t *Task) SetShouldStop(fn func() bool) {
+	t.shouldStop = fn
 }
 
 func (t *Task) Run() error {
@@ -89,6 +100,9 @@ func (t *Task) runWithOptions(opts statemachine.RunOptions) error {
 	}
 	if t.guard != nil {
 		opts.Guard = t.guard.Check
+	}
+	if opts.ShouldStop == nil && t.shouldStop != nil {
+		opts.ShouldStop = t.shouldStop
 	}
 	return t.sm.Run(t.handlers(), opts)
 }
