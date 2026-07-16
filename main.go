@@ -6,7 +6,6 @@ import (
 
 	"app/internal/config"
 	"app/internal/game/arena"
-	"app/internal/game/collect"
 	"app/internal/game/common/kingdom"
 	"app/internal/guard"
 	"app/internal/logger"
@@ -93,20 +92,6 @@ func buildRuntime(cfg *config.Config) *runtime.Runtime {
 		Action: arenaTask.Run,
 	})
 
-	collectFeature := collect.DefaultFeature()
-	collectSession := collect.NewSession()
-	collectTask := collect.NewTask(
-		&cfg.Modules.Collect,
-		det, exec, collectFeature, collectSession,
-	)
-	sched.Build(scheduler.TaskOpts{
-		Name: "收集",
-		CheckEnabled: func() bool {
-			return cfg.Modules.Collect.Enabled
-		},
-		Action: collectTask.Run,
-	})
-
 	rt := runtime.New(runtime.Options{
 		Scheduler: sched,
 		Guard:     g,
@@ -118,6 +103,5 @@ func buildRuntime(cfg *config.Config) *runtime.Runtime {
 		},
 	})
 	arenaTask.SetShouldStop(rt.IsStopped)
-	collectTask.SetShouldStop(rt.IsStopped)
 	return rt
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/Dasongzi1366/AutoGo/imgui"
 )
 
-// drawConfigPanel 工业风窗壳：自适应宽高 + 会话条 + 单一主 CTA（无倒计时双入口）。
+// drawConfigPanel 工业风窗壳：自适应宽高 + 会话条 + 配置内容。
 func drawConfigPanel(opts ShellOptions, open *bool) bool {
 	width, height, _, _ := device.GetDisplayInfo(0)
 	winW := float32(width) * 0.72
@@ -36,7 +36,7 @@ func drawConfigPanel(opts ShellOptions, open *bool) bool {
 	if imgui.BeginV(opts.Title, open, flags) {
 		renderSessionBar(opts, open)
 		imgui.Separator()
-		opts.Render(opts.Store)
+		renderCookiePanel(opts)
 	}
 	imgui.End()
 
@@ -58,8 +58,7 @@ func renderSessionBar(opts ShellOptions, open *bool) {
 
 	en, total := 0, 0
 	if opts.Store != nil {
-		EnsureBuiltinModules()
-		en, total = CountEnabled(opts.Store)
+		en, total = CountEnabled(opts.Store, BuiltinModules())
 	}
 
 	imgui.AlignTextToFramePadding()

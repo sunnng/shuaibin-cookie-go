@@ -9,14 +9,8 @@ type Arena struct {
 	TrophyDiff int `json:"trophyDiff"`
 }
 
-// Collect is the resource-collect module skeleton (Enabled only for now).
-type Collect struct {
-	Enabled bool `json:"enabled"`
-}
-
 type ModuleConfig struct {
-	Arena   Arena   `json:"arena"`
-	Collect Collect `json:"collect"`
+	Arena Arena `json:"arena"`
 }
 
 type Config struct {
@@ -30,9 +24,6 @@ func DefaultConfig() *Config {
 				Enabled:      true,
 				AutoBuyCount: 0,
 				TrophyDiff:   0,
-			},
-			Collect: Collect{
-				Enabled: false,
 			},
 		},
 	}

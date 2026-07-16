@@ -14,15 +14,6 @@ const (
 	StatePaused
 )
 
-type Controller interface {
-	State() ScriptState
-	Start()
-	Pause()
-	Resume()
-	Stop()
-	Exit()
-}
-
 // SessionHooks.OnStart 返回：阻塞的 run（在 goroutine 中调用）、以及 pause/resume/stop 钩子。
 type SessionHooks struct {
 	OnStart func() (run func() error, pause, resume, stop func())

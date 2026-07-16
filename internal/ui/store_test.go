@@ -49,21 +49,3 @@ func TestClearPanelCache(t *testing.T) {
 		t.Fatalf("store.json should be removed, err=%v", err)
 	}
 }
-
-func TestArenaSummary(t *testing.T) {
-	s := NewStore()
-	s.SetFloat(KeyArenaMaxBattles, 0)
-	s.SetFloat(KeyArenaAutoBuy, 2)
-	s.SetFloat(KeyArenaTrophyDiff, 50)
-	got := ArenaSummary(s)
-	want := "上限 不限 · 购买 2 · 奖杯差 50"
-	if got != want {
-		t.Fatalf("got %q want %q", got, want)
-	}
-	s.SetFloat(KeyArenaMaxBattles, 20)
-	got = ArenaSummary(s)
-	want = "上限 20 · 购买 2 · 奖杯差 50"
-	if got != want {
-		t.Fatalf("got %q want %q", got, want)
-	}
-}

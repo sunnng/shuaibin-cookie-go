@@ -8,13 +8,16 @@ import (
 	"github.com/Dasongzi1366/AutoGo/imgui"
 )
 
-// settingsStatus 系统页操作反馈。
+// settingsStatus 系统区操作反馈（仅面板会话内有效，不落盘）。
 var settingsStatus string
 
-// DefaultCookiePanel 方案 E：工业风 Task Hub（左导航 + 模块表 + 详情 / 卡密 / 系统）。
-func DefaultCookiePanel(store *Store) {
-	EnsureBuiltinModules()
-	SeedHubDefaults(store)
+// renderCookiePanel 左轨（任务/系统）+ 分类列表 + 详情；模块表见 BuiltinModules。
+func renderCookiePanel(opts ShellOptions) {
+	store := opts.Store
+	if store == nil {
+		return
+	}
+	SeedPanelDefaults(store)
 
 	avail := imgui.ContentRegionAvail()
 	railW := float32(120)
@@ -26,47 +29,41 @@ func DefaultCookiePanel(store *Store) {
 		}
 	}
 
-	imgui.BeginChildStrV("hub_rail", imgui.Vec2{X: railW, Y: 0}, imgui.ChildFlagsBorders, imgui.WindowFlagsNone)
-	renderHubRail(store)
+	imgui.BeginChildStrV("panel_rail", imgui.Vec2{X: railW, Y: 0}, imgui.ChildFlagsBorders, imgui.WindowFlagsNone)
+	renderPanelRail(store)
 	imgui.EndChild()
 
 	imgui.SameLine()
 
-	nav := store.GetString(KeyHubNav)
-	switch nav {
-	case HubNavLicense:
-		imgui.BeginChildStrV("hub_license", imgui.Vec2{X: 0, Y: 0}, imgui.ChildFlagsBorders, imgui.WindowFlagsNone)
-		renderLicensePage(store)
-		imgui.EndChild()
-	case HubNavSystem:
-		imgui.BeginChildStrV("hub_system", imgui.Vec2{X: 0, Y: 0}, imgui.ChildFlagsBorders, imgui.WindowFlagsNone)
-		renderSystemPage(store)
+	switch store.GetString(KeyPanelNav) {
+	case PanelNavSystem:
+		imgui.BeginChildStrV("panel_system", imgui.Vec2{X: 0, Y: 0}, imgui.ChildFlagsBorders, imgui.WindowFlagsNone)
+		renderSystemPage(opts)
 		imgui.EndChild()
 	default:
-		imgui.BeginChildStrV("hub_list", imgui.Vec2{X: listW, Y: 0}, imgui.ChildFlagsBorders, imgui.WindowFlagsNone)
+		imgui.BeginChildStrV("panel_list", imgui.Vec2{X: listW, Y: 0}, imgui.ChildFlagsBorders, imgui.WindowFlagsNone)
 		renderModuleList(store)
 		imgui.EndChild()
 
 		imgui.SameLine()
 
-		imgui.BeginChildStrV("hub_detail", imgui.Vec2{X: 0, Y: 0}, imgui.ChildFlagsBorders, imgui.WindowFlagsNone)
+		imgui.BeginChildStrV("panel_detail", imgui.Vec2{X: 0, Y: 0}, imgui.ChildFlagsBorders, imgui.WindowFlagsNone)
 		renderModuleDetail(store)
 		imgui.EndChild()
 	}
 }
 
-func renderHubRail(store *Store) {
-	nav := store.GetString(KeyHubNav)
-	hubRailButton(store, HubNavModules, "任务", nav == HubNavModules)
-	hubRailButton(store, HubNavLicense, "卡密", nav == HubNavLicense)
-	hubRailButton(store, HubNavSystem, "系统", nav == HubNavSystem)
+func renderPanelRail(store *Store) {
+	nav := store.GetString(KeyPanelNav)
+	railButton(store, PanelNavTasks, "任务", nav == PanelNavTasks)
+	railButton(store, PanelNavSystem, "系统", nav == PanelNavSystem)
 
 	imgui.Dummy(imgui.Vec2{X: 0, Y: 12})
-	en, total := CountEnabled(store)
+	en, total := CountEnabled(store, BuiltinModules())
 	imgui.TextDisabled(fmt.Sprintf("%d/%d 启用", en, total))
 }
 
-func hubRailButton(store *Store, id, label string, active bool) {
+func railButton(store *Store, id, label string, active bool) {
 	const padX, padY = float32(10), float32(10)
 	_, btnH := fitButtonSize(label, padX, padY)
 	if btnH < 40 {
@@ -79,7 +76,7 @@ func hubRailButton(store *Store, id, label string, active bool) {
 		imgui.PushStyleColorVec4(imgui.ColButtonActive, IndustrialAccent())
 	}
 	if imgui.ButtonV(label+"##rail_"+id, imgui.Vec2{X: -1, Y: btnH}) {
-		store.SetString(KeyHubNav, id)
+		store.SetString(KeyPanelNav, id)
 	}
 	if active {
 		imgui.PopStyleColorV(3)
@@ -88,26 +85,18 @@ func hubRailButton(store *Store, id, label string, active bool) {
 }
 
 func renderModuleList(store *Store) {
-	cat := store.GetString(KeyHubCat)
+	cat := store.GetString(KeyPanelCat)
 	if cat == "" {
-		cat = HubCatAll
+		cat = PanelCatAll
 	}
-
 	renderCatChips(store, cat)
 
-	imgui.PushItemWidth(-1)
-	filter := store.GetString(KeyHubFilter)
-	if imgui.InputTextWithHint("##hub_filter", "搜索模块…", &filter, 0, nil) {
-		store.SetString(KeyHubFilter, filter)
-	}
-	imgui.PopItemWidth()
 	imgui.Separator()
-
 	imgui.TextDisabled("启用  模块")
 	imgui.Separator()
 
-	mods := FilterModules(ModuleCategory(cat), store.GetString(KeyHubFilter))
-	selected := store.GetString(KeyHubSelected)
+	mods := FilterByCategory(BuiltinModules(), store.GetString(KeyPanelCat))
+	selected := store.GetString(KeyPanelSelected)
 	for _, m := range mods {
 		on := m.EnabledKey != "" && store.GetBool(m.EnabledKey)
 		mark := "□ "
@@ -121,32 +110,31 @@ func renderModuleList(store *Store) {
 			imgui.PushStyleColorVec4(imgui.ColHeaderHovered, IndustrialAccent())
 			imgui.PushStyleColorVec4(imgui.ColHeaderActive, IndustrialAccent())
 		}
-		// 行高按中文抬高，避免 Selectable 裁切
 		rowH := measureLabelSize(label).Y + 12
 		if rowH < 28 {
 			rowH = 28
 		}
 		if imgui.SelectableBoolV(label+"##mod_"+m.ID, selectedHere, imgui.SelectableFlagsNone, imgui.Vec2{X: 0, Y: rowH}) {
-			store.SetString(KeyHubSelected, m.ID)
+			store.SetString(KeyPanelSelected, m.ID)
 		}
 		if selectedHere {
 			imgui.PopStyleColorV(3)
 		}
-		if m.Summary != nil {
-			imgui.TextDisabled("   " + m.Summary(store))
+		if sum := moduleSummary(store, m); sum != "" {
+			imgui.TextDisabled("   " + sum)
 		}
 	}
 	if len(mods) == 0 {
-		imgui.TextDisabled("（无匹配模块）")
+		imgui.TextDisabled("（该分类暂无模块）")
 	}
 }
 
 func renderCatChips(store *Store, cat string) {
 	chips := []struct{ id, label string }{
-		{HubCatAll, "全部"},
-		{HubCatDaily, "日常"},
-		{HubCatEvent, "活动"},
-		{HubCatMaint, "维护"},
+		{PanelCatAll, "全部"},
+		{PanelCatDaily, "日常"},
+		{PanelCatEvent, "活动"},
+		{PanelCatMaint, "维护"},
 	}
 	const padX, padY = float32(10), float32(6)
 	const gap = float32(6)
@@ -160,7 +148,6 @@ func renderCatChips(store *Store, cat string) {
 		if !lineStart {
 			remain := imgui.ContentRegionAvail().X
 			if remain < w+gap {
-				// 本行放不下则换行，避免被中间栏裁切
 				lineStart = true
 			} else {
 				imgui.SameLine()
@@ -171,7 +158,7 @@ func renderCatChips(store *Store, cat string) {
 			imgui.PushStyleColorVec4(imgui.ColButton, IndustrialAccent())
 		}
 		if imgui.ButtonV(c.label+"##cat_"+c.id, imgui.Vec2{X: w, Y: h}) {
-			store.SetString(KeyHubCat, c.id)
+			store.SetString(KeyPanelCat, c.id)
 		}
 		if active {
 			imgui.PopStyleColorV(1)
@@ -181,16 +168,16 @@ func renderCatChips(store *Store, cat string) {
 }
 
 func renderModuleDetail(store *Store) {
-	id := store.GetString(KeyHubSelected)
-	m, ok := ModuleByID(id)
+	mods := BuiltinModules()
+	id := store.GetString(KeyPanelSelected)
+	m, ok := FindModule(mods, id)
 	if !ok {
-		mods := Modules()
 		if len(mods) == 0 {
-			imgui.TextDisabled("无已注册模块")
+			imgui.TextDisabled("无模块")
 			return
 		}
 		m = mods[0]
-		store.SetString(KeyHubSelected, m.ID)
+		store.SetString(KeyPanelSelected, m.ID)
 	}
 
 	imgui.Text(m.Title)
@@ -201,70 +188,47 @@ func renderModuleDetail(store *Store) {
 	} else {
 		imgui.TextDisabled("未启用")
 	}
-	imgui.TextDisabled(fmt.Sprintf("ID=%s  分类=%s", m.ID, categoryLabel(m.Category)))
+	imgui.TextDisabled(fmt.Sprintf("分类=%s", categoryLabel(m.Category)))
 	imgui.Separator()
 
-	if m.RenderDetail != nil {
-		m.RenderDetail(store)
-	} else {
+	switch m.ID {
+	case "arena":
+		renderArenaDetail(store)
+	default:
 		imgui.TextDisabled("无详情渲染")
 	}
 }
 
-func categoryLabel(c ModuleCategory) string {
-	switch c {
-	case CategoryDaily:
-		return "日常"
-	case CategoryEvent:
-		return "活动"
-	case CategoryMaint:
-		return "维护"
+func renderArenaDetail(store *Store) {
+	UI_创建复选框(store, KeyArenaEnabled, "启用")
+	UI_创建数字输入框(store, KeyArenaMaxBattles, "每日战斗上限", "0=不限", float32(-1), float32(0), "#d6d8df", float64(1), float64(0), float64(999))
+	UI_创建数字输入框(store, KeyArenaAutoBuy, "自动购买次数", "0", float32(-1))
+	UI_创建数字输入框(store, KeyArenaTrophyDiff, "奖杯差阈值", "0", float32(-1))
+}
+
+func moduleSummary(store *Store, m Module) string {
+	switch m.ID {
+	case "arena":
+		max := int(store.GetFloat(KeyArenaMaxBattles))
+		buy := int(store.GetFloat(KeyArenaAutoBuy))
+		diff := int(store.GetFloat(KeyArenaTrophyDiff))
+		maxLabel := "不限"
+		if max > 0 {
+			maxLabel = fmt.Sprintf("%d", max)
+		}
+		return fmt.Sprintf("上限 %s · 购买 %d · 奖杯差 %d", maxLabel, buy, diff)
 	default:
-		return string(c)
+		return ""
 	}
 }
 
-func renderLicensePage(store *Store) {
-	imgui.Text("卡密")
-	imgui.TextDisabled("验证占位 · 后续接入服务端校验")
-	imgui.Separator()
-
-	status := store.GetString(KeyLicenseStatus)
-	statusLabel := "未验证"
-	switch status {
-	case "ok":
-		statusLabel = "已授权"
-	case "expired":
-		statusLabel = "已过期"
-	}
-	imgui.Text("状态  " + statusLabel)
-	imgui.TextDisabled("到期  --")
-	imgui.Spacing()
-
-	UI_创建输入框(store, KeyLicense, "卡密", "请输入卡密", float32(-1))
-	UI_创建按钮("license_verify", "验证", func() {
-		settingsStatus = "卡密验证尚未接入"
-		store.SetString(KeyLicenseStatus, "unverified")
-	}, float32(-2), float32(-2))
-	imgui.SameLine()
-	UI_创建按钮("license_clear", "清除", func() {
-		store.SetString(KeyLicense, "")
-		store.SetString(KeyLicenseStatus, "unverified")
-		settingsStatus = "卡密已清除"
-	}, float32(-2), float32(-2))
-
-	if settingsStatus != "" {
-		imgui.Spacing()
-		imgui.TextWrapped(settingsStatus)
-	}
-}
-
-func renderSystemPage(store *Store) {
+func renderSystemPage(opts ShellOptions) {
+	store := opts.Store
 	imgui.Text("系统")
-	imgui.TextDisabled("配置持久化 / 调试")
+	imgui.TextDisabled("配置持久化")
 	imgui.Separator()
 
-	path := cookiePanelOpts.ConfigPath
+	path := opts.ConfigPath
 	if path == "" {
 		path = "/sdcard/shuaibin-cookie/ui.json"
 	}
@@ -279,25 +243,18 @@ func renderSystemPage(store *Store) {
 	}, float32(-2), float32(-2))
 	imgui.SameLine()
 	UI_创建按钮("clear_cache", "清除缓存", func() {
-		if cookiePanelOpts.Controller != nil {
-			st := cookiePanelOpts.Controller.State()
+		if opts.Controller != nil {
+			st := opts.Controller.State()
 			if st == StateRunning || st == StatePaused {
-				cookiePanelOpts.Controller.Stop()
+				opts.Controller.Stop()
 			}
 		}
-		cfgPath := path
-		dataPath := cookiePanelOpts.DataStorePath
-		if err := ClearPanelCache(store, cfgPath, dataPath, cookiePanelOpts.Reseed); err != nil {
+		if err := ClearPanelCache(store, path, opts.DataStorePath, opts.Reseed); err != nil {
 			settingsStatus = fmt.Sprintf("清除失败：%v", err)
 			return
 		}
+		SeedPanelDefaults(store)
 		settingsStatus = "缓存已清除，默认配置已恢复"
-	}, float32(-2), float32(-2))
-	imgui.SameLine()
-	UI_创建按钮("dump_config", "打印 Store", func() {
-		if json, err := store.ToJSON(); err == nil {
-			settingsStatus = json
-		}
 	}, float32(-2), float32(-2))
 
 	if settingsStatus != "" {
