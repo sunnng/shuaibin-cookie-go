@@ -1,7 +1,6 @@
 package kingdom
 
 import (
-	"app/internal/platform/action"
 	"app/internal/platform/screen"
 )
 
@@ -61,13 +60,4 @@ func DefaultFeature() *Feature {
 			EventBtn:     screen.Region{X1: 246, Y1: 802, X2: 271, Y2: 832},
 		},
 	}
-}
-
-// RegionConfigured reports whether a tap box was filled.
-func RegionConfigured(r screen.Region) bool {
-	return action.RegionConfigured(action.Region{X1: r.X1, Y1: r.Y1, X2: r.X2, Y2: r.Y2})
-}
-
-func tapRegion(r screen.Region) action.Point {
-	return action.RandomIn(action.Region{X1: r.X1, Y1: r.Y1, X2: r.X2, Y2: r.Y2})
 }

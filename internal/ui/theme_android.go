@@ -4,8 +4,9 @@ package ui
 
 import "github.com/Dasongzi1366/AutoGo/imgui"
 
-// IndustrialTheme 工业软件严谨风色板（不透明、小圆角、实线边框）。
-type IndustrialTheme struct {
+// QQBlueTheme 经典 QQ 风浅蓝主题：浅蓝窗体、白色内容区、天蓝主色、小圆角。
+// 参考 2009 年代 QQ 客户端配色（sky-blue + white）。
+type QQBlueTheme struct {
 	WindowBg      imgui.Vec4
 	ChildBg       imgui.Vec4
 	PopupBg       imgui.Vec4
@@ -27,35 +28,35 @@ type IndustrialTheme struct {
 	Rounding      float32
 }
 
-// DefaultIndustrialTheme 深灰工控面板默认主题。
-func DefaultIndustrialTheme() IndustrialTheme {
-	return IndustrialTheme{
-		WindowBg:      HexToVec4("#1b1e22ff"),
-		ChildBg:       HexToVec4("#22262bff"),
-		PopupBg:       HexToVec4("#1b1e22f2"),
-		Border:        HexToVec4("#3d4450ff"),
-		FrameBg:       HexToVec4("#2a2f36ff"),
-		FrameHover:    HexToVec4("#343b44ff"),
-		FrameActive:   HexToVec4("#3a4452ff"),
-		Button:        HexToVec4("#2f3640ff"),
-		ButtonHover:   HexToVec4("#3a4452ff"),
-		ButtonActive:  HexToVec4("#4a90c8ff"),
-		Header:        HexToVec4("#2a2f36ff"),
-		HeaderHover:   HexToVec4("#343b44ff"),
-		HeaderActive:  HexToVec4("#3a4452ff"),
-		Text:          HexToVec4("#d6d8dfff"),
-		TextDisabled:  HexToVec4("#7a828cff"),
-		Accent:        HexToVec4("#4a90c8ff"),
-		TitleBg:       HexToVec4("#16191dff"),
-		TitleBgActive: HexToVec4("#16191dff"),
-		Rounding:      2,
+// DefaultQQBlueTheme QQ 风浅蓝默认主题。
+func DefaultQQBlueTheme() QQBlueTheme {
+	return QQBlueTheme{
+		WindowBg:      HexToVec4("#e9f2fbff"),
+		ChildBg:       HexToVec4("#f7fbffff"),
+		PopupBg:       HexToVec4("#f2f8feff"),
+		Border:        HexToVec4("#9cc3e5ff"),
+		FrameBg:       HexToVec4("#ffffffff"),
+		FrameHover:    HexToVec4("#e3f0fbff"),
+		FrameActive:   HexToVec4("#cde6faff"),
+		Button:        HexToVec4("#dcebfaff"),
+		ButtonHover:   HexToVec4("#bcdcf7ff"),
+		ButtonActive:  HexToVec4("#8fc3efff"),
+		Header:        HexToVec4("#dcebfaff"),
+		HeaderHover:   HexToVec4("#bcdcf7ff"),
+		HeaderActive:  HexToVec4("#8fc3efff"),
+		Text:          HexToVec4("#1f3a52ff"),
+		TextDisabled:  HexToVec4("#7a8fa3ff"),
+		Accent:        HexToVec4("#2f8fd0ff"),
+		TitleBg:       HexToVec4("#3d8fd1ff"),
+		TitleBgActive: HexToVec4("#3d8fd1ff"),
+		Rounding:      4,
 	}
 }
 
-// ApplyIndustrialTheme 将工业风推入当前 ImGui 样式（在 imgui.Init 之后调用）。
+// ApplyQQBlueTheme 将 QQ 蓝主题推入当前 ImGui 样式（在 imgui.Init 之后调用）。
 // 颜色/圆角在整个 RunShell 生命周期内保持（进程级 UI）。
-func ApplyIndustrialTheme() {
-	th := DefaultIndustrialTheme()
+func ApplyQQBlueTheme() {
+	th := DefaultQQBlueTheme()
 
 	imgui.PushStyleColorVec4(imgui.ColWindowBg, th.WindowBg)
 	imgui.PushStyleColorVec4(imgui.ColChildBg, th.ChildBg)
@@ -89,7 +90,17 @@ func ApplyIndustrialTheme() {
 	imgui.PushStyleVarFloat(imgui.StyleVarFrameBorderSize, 1)
 }
 
-// IndustrialAccent 主色，供顶栏 START 等使用。
-func IndustrialAccent() imgui.Vec4 {
-	return HexToVec4("#4a90c8ff")
+// QQBlueAccent 主色（天蓝），供选中态、主按钮等使用。
+func QQBlueAccent() imgui.Vec4 {
+	return HexToVec4("#2f8fd0ff")
 }
+
+// 标题栏渐变端色（上浅下深的天蓝，QQ 客户端标题栏风格）。
+func QQBlueTitleTop() imgui.Vec4    { return HexToVec4("#5aa9e6ff") }
+func QQBlueTitleBottom() imgui.Vec4 { return HexToVec4("#2f7fc4ff") }
+
+// QQBlueRailBg 面板左轨底色（浅蓝）。
+func QQBlueRailBg() imgui.Vec4 { return HexToVec4("#cfe4f7ff") }
+
+// QQBlueWhite 标题栏/主按钮上的文字白。
+func QQBlueWhite() imgui.Vec4 { return imgui.Vec4{X: 1, Y: 1, Z: 1, W: 1} }

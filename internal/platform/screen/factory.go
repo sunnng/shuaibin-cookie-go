@@ -23,7 +23,7 @@ func (s *stubDetector) MatchMultiColor(colors string, sim float32) bool { return
 func (s *stubDetector) MatchImage(region Region, template []byte, sim float32) (Point, bool) {
 	return Point{}, false
 }
-func (s *stubDetector) OCRText(region Region) string { return "" }
+func (s *stubDetector) OCRText(region Region) (string, error) { return "", nil }
 func (s *stubDetector) FindOCRText(region Region, keyword string) (Point, bool) {
 	return Point{}, false
 }

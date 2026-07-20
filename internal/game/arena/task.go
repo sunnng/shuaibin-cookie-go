@@ -9,6 +9,7 @@ import (
 	"app/internal/platform/action"
 	"app/internal/platform/screen"
 	"app/internal/statemachine"
+	"app/internal/status"
 )
 
 // page is the interface required by Task to interact with the arena UI.
@@ -47,6 +48,7 @@ type Task struct {
 	kingdomPage *kingdom.Page
 	guard       *guard.Guard
 	shouldStop  func() bool
+	reporter    *status.Reporter
 }
 
 func NewTask(
@@ -60,7 +62,7 @@ func NewTask(
 ) *Task {
 	page := NewPage(det, exec, feature)
 	route := NewRoute(page, kingdomPage)
-	return &Task{
+	t := &Task{
 		cfg:         cfg,
 		page:        page,
 		route:       route,
@@ -69,12 +71,51 @@ func NewTask(
 		kingdomPage: kingdomPage,
 		guard:       guard,
 	}
+	registerDialogTraps(guard, exec, feature.Dialogs)
+	return t
+}
+
+// registerDialogTraps 把竞技场弹窗特征注册为 Guard trap，战斗中（状态机每 tick
+// 都会跑 Guard）弹窗出现时按 Confirm 区域点掉。未取色（Colors 为空）的弹窗由
+// Guard.Register 跳过并告警，不会注册成永远不触发的死 trap。
+func registerDialogTraps(g *guard.Guard, exec action.Executor, dialogs DialogsFeature) {
+	if g == nil || exec == nil {
+		return
+	}
+	traps := []struct {
+		name string
+		def  DialogDef
+	}{
+		{"竞技场弹窗-缺少配料", dialogs.MissingTopping},
+		{"竞技场弹窗-部署更多", dialogs.DeployMore},
+	}
+	for _, tr := range traps {
+		def := tr.def
+		g.Register(tr.name, def.Identify, func() error {
+			exec.Tap(action.RandomIn(def.Confirm))
+			exec.Sleep(800)
+			return nil
+		}, 10)
+	}
 }
 
 // SetShouldStop wires a stop probe (typically runtime.IsStopped) so the
 // task-level state machine can exit between ticks when the session stops.
 func (t *Task) SetShouldStop(fn func() bool) {
 	t.shouldStop = fn
+}
+
+// SetStatusReporter 接入任务状态上报（灵动岛展示战斗次数/胜率），nil 表示不上报。
+func (t *Task) SetStatusReporter(r *status.Reporter) {
+	t.reporter = r
+}
+
+// pushStatus 把当前会话统计推给灵动岛；未接入上报时无操作。
+func (t *Task) pushStatus() {
+	if t.reporter == nil {
+		return
+	}
+	t.reporter.Set(t.session.StatusText(t.cfg))
 }
 
 func (t *Task) Run() error {

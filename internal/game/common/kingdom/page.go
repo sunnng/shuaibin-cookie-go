@@ -49,36 +49,36 @@ func (p *Page) IsEventPage() bool {
 
 func (p *Page) TapAdventureBtn() {
 	r := p.feature.Actions.AdventureBtn
-	if !RegionConfigured(r) {
+	if !action.RegionConfigured(r) {
 		logger.Warnf("[Kingdom] AdventureBtn not configured")
 		return
 	}
-	_ = p.executor.Tap(tapRegion(r))
+	p.executor.Tap(action.RandomIn(r))
 	p.executor.Sleep(1200)
 }
 
 func (p *Page) TapEventBtn() {
 	r := p.feature.Actions.EventBtn
-	if !RegionConfigured(r) {
+	if !action.RegionConfigured(r) {
 		logger.Warnf("[Kingdom] EventBtn not configured")
 		return
 	}
-	_ = p.executor.Tap(tapRegion(r))
+	p.executor.Tap(action.RandomIn(r))
 	p.executor.Sleep(1200)
 }
 
 func (p *Page) TapBackHome() {
 	r := p.feature.Actions.BackHome
-	if !RegionConfigured(r) {
+	if !action.RegionConfigured(r) {
 		logger.Warnf("[Kingdom] BackHome not configured")
 		return
 	}
-	_ = p.executor.Tap(tapRegion(r))
+	p.executor.Tap(action.RandomIn(r))
 	p.executor.Sleep(800)
 }
 
 func (p *Page) HasBackHome() bool {
-	return RegionConfigured(p.feature.Actions.BackHome)
+	return action.RegionConfigured(p.feature.Actions.BackHome)
 }
 
 func (p *Page) WaitAdventure(timeout time.Duration) bool {

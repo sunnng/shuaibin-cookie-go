@@ -58,21 +58,25 @@ func (s *Scheduler) Run(stopOnError bool) (bool, error) {
 	return hasWork, nil
 }
 
-func (s *Scheduler) MaxIdleWait() (time.Duration, string) {
+// MinIdleWait 返回所有 idle provider 中最小的正等待时长及其标签。
+// 取最小值：最早可能就绪的任务决定唤醒时间；没有正等待时返回 (0, "")。
+func (s *Scheduler) MinIdleWait() (time.Duration, string) {
 	names := make([]string, 0, len(s.idleProviders))
 	for name := range s.idleProviders {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 
-	var maxWait time.Duration
-	var maxLabel string
+	var minWait time.Duration
+	var minLabel string
 	for _, name := range names {
 		wait, label := s.idleProviders[name]()
-		if wait > maxWait {
-			maxWait = wait
-			maxLabel = label
+		if wait <= 0 {
+			continue
+		}
+		if minWait == 0 || wait < minWait {
+			minWait, minLabel = wait, label
 		}
 	}
-	return maxWait, maxLabel
+	return minWait, minLabel
 }

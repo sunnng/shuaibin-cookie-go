@@ -140,7 +140,7 @@ func (r *Runtime) Run() error {
 		}
 
 		if !hasWork {
-			wait, label := r.scheduler.MaxIdleWait()
+			wait, label := r.scheduler.MinIdleWait()
 			if wait > 0 {
 				logger.Infof("[Runtime] idle wait %v | %s", wait, label)
 				r.sleepWithGuard(minDuration(wait, r.cfg.IdleDelay))

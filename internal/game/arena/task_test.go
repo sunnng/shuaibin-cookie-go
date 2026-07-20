@@ -6,8 +6,11 @@ import (
 	"time"
 
 	"app/internal/config"
+	"app/internal/guard"
 	"app/internal/platform/action"
+	"app/internal/platform/screen"
 	"app/internal/statemachine"
+	"app/internal/status"
 	"app/internal/store"
 )
 
@@ -243,5 +246,71 @@ func TestArenaTaskLeavesWhenMaxBattlesReached(t *testing.T) {
 	}
 	if r.leaveCalls == 0 {
 		t.Error("expected route.Leave to be called")
+	}
+}
+
+// 战斗结果识别失败（结算未出现/OCR 失败）属于可恢复的识别问题：
+// 应 Retry 直到 MaxRetry 耗尽报错，而不是当 Fatal 立即终止，也绝不能计入战绩。
+func TestArenaTaskRetriesWhenBattleResultUnknown(t *testing.T) {
+	cfg := &config.Arena{Enabled: true, AutoBuyCount: 0}
+	p := &mockPage{
+		lobby:    true,
+		tickets:  1,
+		opponent: &OpponentInfo{Site: action.Point{X: 500, Y: 400}},
+		battleOK: false, // 识别持续失败
+	}
+	r := &mockRoute{leaveOK: true}
+
+	task := newTestTask(t, cfg, p, r)
+	task.sm.Init("detect", statemachine.Options{MaxRetry: 2, MaxError: 3, Timeout: 5 * time.Second, RetryInterval: time.Millisecond})
+	task.sm.Ctx = &arenaCtx{task: task, cfg: cfg}
+	err := task.sm.Run(task.handlers(), fastRunOptions())
+	if err == nil {
+		t.Fatal("expected retry exceeded when battle result keeps unrecognizable")
+	}
+	if p.runBattleCalls != 3 { // 首次 + MaxRetry=2 次重试
+		t.Errorf("expected RunBattle called 3 times (1+2 retries), got %d", p.runBattleCalls)
+	}
+	if task.session.TotalBattles() != 0 {
+		t.Errorf("unrecognized battle must not count as battle, got total=%d", task.session.TotalBattles())
+	}
+}
+
+// 已取色的弹窗注册为 Guard trap 并能点确认；未取色的弹窗被跳过、不注册。
+func TestRegisterDialogTraps(t *testing.T) {
+	g := guard.New(&mockDetector{matchMulti: true})
+	exec := &mockExecutor{}
+	dialogs := DialogsFeature{
+		MissingTopping: DialogDef{
+			Identify: screen.Feature{Colors: "dlg", Sim: 0.9},
+			Confirm:  screen.Region{X1: 10, Y1: 10, X2: 20, Y2: 20},
+		},
+		// DeployMore 未取色：应被 Guard 跳过
+	}
+	registerDialogTraps(g, exec, dialogs)
+	if !g.Check() {
+		t.Fatal("expected configured dialog trap to fire")
+	}
+	if len(exec.taps) != 1 {
+		t.Fatalf("expected confirm tap once, got %v", exec.taps)
+	}
+}
+
+func TestRegisterDialogTrapsNilGuard(t *testing.T) {
+	registerDialogTraps(nil, &mockExecutor{}, DialogsFeature{}) // must not panic
+}
+
+// pushStatus 未接入上报时无操作；接入后写入会话统计文本。
+func TestTaskPushStatus(t *testing.T) {
+	s := NewSession(store.New(filepath.Join(t.TempDir(), "store.json")))
+	s.Wins, s.Losses = 2, 1
+	task := newTask(&config.Arena{}, nil, nil, s, nil)
+	task.pushStatus() // reporter 为 nil，不应 panic
+
+	r := status.New()
+	task.SetStatusReporter(r)
+	task.pushStatus()
+	if got := r.Text(); got != "竞技场 3 场 · 胜率 66%" {
+		t.Fatalf("status = %q", got)
 	}
 }

@@ -55,6 +55,7 @@ func (t *Task) handlers() map[string]statemachine.Handler {
 			}
 			ctx.task.session.Trophies = trophies
 			logger.Infof("[Arena] sync medals=%d tickets=%d trophies=%d", medal, ticket, trophies)
+			ctx.task.pushStatus()
 			return statemachine.Next("check")
 		},
 		"check": func(sm *statemachine.Machine) statemachine.Result {
@@ -124,7 +125,10 @@ func (t *Task) handlers() map[string]statemachine.Handler {
 			ctx := sm.Ctx.(*arenaCtx)
 			result, ok := ctx.task.page.RunBattle()
 			if !ok {
-				return statemachine.Fatal{Err: errors.New("战斗失败")}
+				// 结算未出现/结果 OCR 失败都属于识别类失败，不是战败；
+				// 重试（受 MaxRetry 约束），不要当 Fatal 终止整轮。
+				logger.Warnf("[Arena] battle result recognition failed, retry")
+				return statemachine.Retry{}
 			}
 			switch result {
 			case "胜利":

@@ -27,7 +27,9 @@ type Detector interface {
 	FindMultiColorsAll(region Region, colors string, sim float32, dir int) []Point
 	MatchMultiColor(colors string, sim float32) bool
 	MatchImage(region Region, template []byte, sim float32) (Point, bool)
-	OCRText(region Region) string
+	// OCRText 读取区域内文本。error 非 nil 表示识别通道本身故障（截屏/引擎
+	// 失败），区别于"识别成功但屏幕上没有文字"（返回 "" 与 nil error）。
+	OCRText(region Region) (string, error)
 	// FindOCRText returns the screen-absolute center of the first OCR hit whose
 	// label contains keyword. Empty keyword → (0, false).
 	FindOCRText(region Region, keyword string) (Point, bool)

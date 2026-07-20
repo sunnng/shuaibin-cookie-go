@@ -49,7 +49,11 @@ func (p *Page) WaitLobby(timeout time.Duration) bool {
 }
 
 func (p *Page) ReadMedalAndTicket() (int, int, bool) {
-	text := p.detector.OCRText(p.feature.Lobby.Reads.MedalTicket)
+	text, err := p.detector.OCRText(p.feature.Lobby.Reads.MedalTicket)
+	if err != nil {
+		logger.Warnf("[Arena] medal/ticket OCR failed: %v", err)
+		return 0, 0, false
+	}
 	parts := strings.Fields(text)
 	if len(parts) < 2 {
 		return 0, 0, false
@@ -63,7 +67,11 @@ func (p *Page) ReadMedalAndTicket() (int, int, bool) {
 }
 
 func (p *Page) ReadTrophyCount() (int, bool) {
-	text := p.detector.OCRText(p.feature.Lobby.Reads.Trophy)
+	text, err := p.detector.OCRText(p.feature.Lobby.Reads.Trophy)
+	if err != nil {
+		logger.Warnf("[Arena] trophy OCR failed: %v", err)
+		return 0, false
+	}
 	n, err := strconv.Atoi(strings.TrimSpace(text))
 	return n, err == nil
 }
@@ -74,7 +82,12 @@ func (p *Page) FindFirstValidOpponent(cfg *config.Arena, myTrophy int) *Opponent
 	lo, hi := myTrophy-cfg.TrophyDiff, myTrophy+cfg.TrophyDiff
 
 	for _, a := range anchors {
-		trophy, ok := readInt(p.detector.OCRText(offsetRegion(op.TrophyRect, a)))
+		text, err := p.detector.OCRText(offsetRegion(op.TrophyRect, a))
+		if err != nil {
+			logger.Warnf("[Arena] opponent trophy OCR failed at %+v: %v", a, err)
+			continue
+		}
+		trophy, ok := readInt(text)
 		if !ok {
 			continue // OCR 失败：跳过该锚点，不漏后面的卡
 		}
@@ -95,32 +108,40 @@ func (p *Page) FindFirstValidOpponent(cfg *config.Arena, myTrophy int) *Opponent
 
 func (p *Page) SwipePageLeft() {
 	s := p.feature.Lobby.Gestures.SwipeLeft
-	_ = p.executor.Swipe(s.From, s.To, s.DurationMs)
+	p.executor.Swipe(s.From, s.To, s.DurationMs)
 	p.executor.Sleep(1000)
 }
 
 func (p *Page) IsFreeRefresh() bool {
-	text := p.detector.OCRText(p.feature.Lobby.Reads.FreeRefresh)
+	text, err := p.detector.OCRText(p.feature.Lobby.Reads.FreeRefresh)
+	if err != nil {
+		logger.Warnf("[Arena] free-refresh OCR failed: %v", err)
+		return false
+	}
 	return strings.TrimSpace(text) == "免费刷新"
 }
 
 func (p *Page) TapFreeRefresh() {
-	_ = p.executor.Tap(tapRegion(p.feature.Lobby.Actions.FreeRefresh))
+	p.executor.Tap(action.RandomIn(p.feature.Lobby.Actions.FreeRefresh))
 	p.executor.Sleep(1000)
 }
 
 func (p *Page) ReadRefreshCountdown() (time.Duration, bool) {
-	text := strings.TrimSpace(p.detector.OCRText(p.feature.Lobby.Reads.Refresh))
-	return parseCountdown(text)
+	text, err := p.detector.OCRText(p.feature.Lobby.Reads.Refresh)
+	if err != nil {
+		logger.Warnf("[Arena] refresh countdown OCR failed: %v", err)
+		return 0, false
+	}
+	return parseCountdown(strings.TrimSpace(text))
 }
 
 func (p *Page) BuyTicket() {
-	_ = p.executor.Tap(tapRegion(p.feature.Lobby.Actions.BuyTicket))
+	p.executor.Tap(action.RandomIn(p.feature.Lobby.Actions.BuyTicket))
 	p.executor.Sleep(1500)
 	s := p.feature.Lobby.Actions.BuyTicketSlider
-	_ = p.executor.Swipe(s.From, s.To, s.DurationMs)
+	p.executor.Swipe(s.From, s.To, s.DurationMs)
 	p.executor.Sleep(1000)
-	_ = p.executor.Tap(tapRegion(p.feature.Lobby.Actions.BuyTicketConfirm))
+	p.executor.Tap(action.RandomIn(p.feature.Lobby.Actions.BuyTicketConfirm))
 }
 
 // TapEntry OCR-taps the arena entrance on the adventure page.
@@ -134,14 +155,14 @@ func (p *Page) TapEntry() bool {
 		logger.Warnf("[Arena] entry OCR miss keyword=%q region=%+v", kw, p.feature.Entry.Region)
 		return false
 	}
-	_ = p.executor.Tap(action.Point{X: pt.X, Y: pt.Y})
+	p.executor.Tap(action.Point{X: pt.X, Y: pt.Y})
 	p.executor.Sleep(1500)
 	return true
 }
 
 // TapLobbyClose taps the lobby close control once (does not require ending in lobby).
 func (p *Page) TapLobbyClose() {
-	_ = p.executor.Tap(tapRegion(p.feature.Lobby.Actions.Close))
+	p.executor.Tap(action.RandomIn(p.feature.Lobby.Actions.Close))
 	p.executor.Sleep(800)
 }
 
@@ -161,7 +182,7 @@ func (p *Page) TapToLobby() bool {
 }
 
 func (p *Page) TapOpponentSite(site action.Point) {
-	_ = p.executor.Tap(site)
+	p.executor.Tap(site)
 	p.executor.Sleep(1000)
 }
 
@@ -190,7 +211,7 @@ func (p *Page) WaitTeamSelect(timeout time.Duration) bool {
 }
 
 func (p *Page) TapStartBattle() {
-	_ = p.executor.Tap(tapRegion(p.feature.TeamSelect.Actions.StartBattle))
+	p.executor.Tap(action.RandomIn(p.feature.TeamSelect.Actions.StartBattle))
 	p.executor.Sleep(1000)
 }
 
@@ -216,11 +237,14 @@ func (p *Page) RunBattle() (string, bool) {
 		logger.Warnf("[Arena] settlement not reached before timeout")
 		return "", false
 	}
-	resultR := p.feature.Settlement.Reads.Result
-	text := p.detector.OCRText(screen.Region{X1: resultR.X1, Y1: resultR.Y1, X2: resultR.X2, Y2: resultR.Y2})
+	text, err := p.detector.OCRText(p.feature.Settlement.Reads.Result)
+	if err != nil {
+		logger.Warnf("[Arena] battle result OCR failed: %v", err)
+		return "", false
+	}
 	result, ok := parseBattleResult(text)
 	if !ok {
-		logger.Warnf("[Arena] battle result OCR failed text=%q", text)
+		logger.Warnf("[Arena] battle result OCR unparsable text=%q", text)
 		return "", false
 	}
 	if !p.leaveSettlementToLobby() {
@@ -241,7 +265,7 @@ func (p *Page) leaveSettlementToLobby() bool {
 			p.executor.Sleep(400)
 			continue
 		}
-		_ = p.executor.Tap(tapRegion(screen.Region{X1: leaveR.X1, Y1: leaveR.Y1, X2: leaveR.X2, Y2: leaveR.Y2}))
+		p.executor.Tap(action.RandomIn(leaveR))
 		p.executor.Sleep(800)
 		if p.IsLobby() {
 			return true
@@ -265,10 +289,6 @@ func parseBattleResult(s string) (string, bool) {
 	default:
 		return "", false
 	}
-}
-
-func tapRegion(r screen.Region) action.Point {
-	return action.RandomIn(action.Region{X1: r.X1, Y1: r.Y1, X2: r.X2, Y2: r.Y2})
 }
 
 func offsetRegion(rel screen.Region, a screen.Point) screen.Region {
@@ -327,8 +347,8 @@ func parseCountdown(s string) (time.Duration, bool) {
 
 // battledAt 判断结果点 pt 是否显示已战标记色。
 // 命中 Win/Draw/Lose 任一 → 已战(true)。三色都不命中 → 未战(false)。
-// 注：Detector.MatchColor 只返 bool、无 error 通道，无法区分"未战中性态"与"比色异常"，
-// 因此"异常当已战"暂不实现；待 MatchColor 提供 error 通道再补保守分支。
+// 注：AutoGo SDK 的比色接口只返 bool、无 error 通道，无法区分"未战中性态"与
+// "比色异常"，因此"异常当已战"的保守分支无法实现；若 SDK 未来提供 error 通道再补。
 func battledAt(det screen.Detector, pt screen.Point, op OpponentFeature) bool {
 	if det.MatchColor(pt.X, pt.Y, op.ResultColors.Win, op.ResultSim) {
 		return true

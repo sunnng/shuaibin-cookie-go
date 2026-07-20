@@ -33,7 +33,7 @@ func TestTaskBuilderRegistersIdleProvider(t *testing.T) {
 		Action:       func() error { return nil },
 	})
 
-	wait, label := s.MaxIdleWait()
+	wait, label := s.MinIdleWait()
 	if wait != 30*time.Second {
 		t.Fatalf("expected idle wait 30s, got %v", wait)
 	}
@@ -60,7 +60,7 @@ func TestTaskBuilderIdleProviderRespectsDisabled(t *testing.T) {
 		Action:       func() error { return nil },
 	})
 
-	wait, _ := s.MaxIdleWait()
+	wait, _ := s.MinIdleWait()
 	if wait != 0 {
 		t.Fatalf("expected no idle wait when disabled, got %v", wait)
 	}

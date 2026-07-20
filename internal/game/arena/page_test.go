@@ -100,8 +100,8 @@ func (m *mockDetector) MatchMultiColor(colors string, sim float32) bool { return
 func (m *mockDetector) MatchImage(r screen.Region, t []byte, s float32) (screen.Point, bool) {
 	return screen.Point{}, false
 }
-func (m *mockDetector) OCRText(r screen.Region) string {
-	return m.ocrByKey[fmt.Sprintf("%d,%d,%d,%d", r.X1, r.Y1, r.X2, r.Y2)]
+func (m *mockDetector) OCRText(r screen.Region) (string, error) {
+	return m.ocrByKey[fmt.Sprintf("%d,%d,%d,%d", r.X1, r.Y1, r.X2, r.Y2)], nil
 }
 func (m *mockDetector) FindOCRText(r screen.Region, keyword string) (screen.Point, bool) {
 	if keyword == "" {
@@ -120,16 +120,14 @@ type mockExecutor struct {
 	sleeps []int
 }
 
-func (e *mockExecutor) Tap(p action.Point) error { e.taps = append(e.taps, p); return nil }
-func (e *mockExecutor) LongTap(p action.Point, ms int) error {
-	return nil
+func (e *mockExecutor) Tap(p action.Point) { e.taps = append(e.taps, p) }
+func (e *mockExecutor) LongTap(p action.Point, ms int) {
 }
-func (e *mockExecutor) Swipe(f, t action.Point, ms int) error {
+func (e *mockExecutor) Swipe(f, t action.Point, ms int) {
 	e.swipes = append(e.swipes, [2]action.Point{f, t})
-	return nil
 }
-func (e *mockExecutor) Back() error  { return nil }
-func (e *mockExecutor) Home() error  { return nil }
+func (e *mockExecutor) Back()        {}
+func (e *mockExecutor) Home()        {}
 func (e *mockExecutor) Sleep(ms int) { e.sleeps = append(e.sleeps, ms) }
 
 func newLobbyFeature() *Feature {

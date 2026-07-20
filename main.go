@@ -13,13 +13,14 @@ import (
 	"app/internal/platform/screen"
 	"app/internal/runtime"
 	"app/internal/scheduler"
+	"app/internal/status"
 	"app/internal/store"
 	"app/internal/ui"
 )
 
 func main() {
 	logger.SetLevel(logger.LevelInfo)
-	logger.Infof("superbin cookie run kingdom start...")
+	logger.Infof("shuaibin cookie run kingdom start...")
 
 	cfg, err := config.LoadConfig("config.json")
 	if err != nil {
@@ -29,11 +30,12 @@ func main() {
 
 	uiStore := ui.NewStore()
 	ui.SeedFromConfig(uiStore, cfg)
+	statusReporter := status.New()
 
 	ctrl := ui.NewSessionController(ui.SessionHooks{
 		OnStart: func() (run func() error, pause, resume, stop func()) {
 			ui.ApplyToConfig(uiStore, cfg)
-			rt := buildRuntime(cfg)
+			rt := buildRuntime(cfg, statusReporter)
 			return rt.Run, rt.Pause, rt.Resume, rt.Stop
 		},
 		OnExit: func() {
@@ -43,22 +45,23 @@ func main() {
 	})
 
 	ui.RunShell(ui.ShellOptions{
-		Title:            "Superbin Cookie",
-		ConfigPath:       "/sdcard/shuaibin-cookie/ui.json",
-		DataStorePath:    "/sdcard/shuaibin-cookie/store.json",
+		Title:            "帅宾 Cookie",
+		ConfigPath:       ui.DefaultConfigPath,
+		DataStorePath:    ui.DefaultStorePath,
 		Store:            uiStore,
 		Controller:       ctrl,
 		OpenPanelOnStart: true,
+		Status:           statusReporter,
 		Reseed: func(s *ui.Store) {
 			ui.SeedFromConfig(s, cfg)
 		},
 	})
 }
 
-func buildRuntime(cfg *config.Config) *runtime.Runtime {
+func buildRuntime(cfg *config.Config, statusReporter *status.Reporter) *runtime.Runtime {
 	det := screen.NewDetector(0)
 	exec := action.NewExecutor(0)
-	s := store.New("/sdcard/shuaibin-cookie/store.json")
+	s := store.New(ui.DefaultStorePath)
 	g := guard.New(det)
 	sched := scheduler.New()
 
@@ -103,5 +106,6 @@ func buildRuntime(cfg *config.Config) *runtime.Runtime {
 		},
 	})
 	arenaTask.SetShouldStop(rt.IsStopped)
+	arenaTask.SetStatusReporter(statusReporter)
 	return rt
 }

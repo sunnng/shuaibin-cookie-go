@@ -1,4 +1,4 @@
-# Superbin Cookie（AutoGo）
+# 帅宾 Cookie（AutoGo）
 
 Android 游戏自动化脚本（Go + AutoGo）。当前业务：王国竞技场。
 
@@ -7,7 +7,7 @@ Android 游戏自动化脚本（Go + AutoGo）。当前业务：王国竞技场�
 
 ## 架构一句话
 
-`main` → `ui.RunShell`（悬浮球 + 面板）→ `SessionController` → `buildRuntime` →  
+`main` → `ui.RunShell`（灵动岛 + 面板）→ `SessionController` → `buildRuntime` →  
 `runtime` 循环：`guard.Check` → `scheduler.Run` → idle；页面流程在各模块任务级 `statemachine` 中。
 
 ## 快速开始
@@ -27,7 +27,8 @@ go build ./...
 |------|------|
 | `main.go` | 组合根：配置、UI、模块装配 |
 | `internal/game/arena/` | 竞技场模块 |
-| `internal/ui/` | ImGui 壳、SessionController、配置 binding |
+| `internal/status/` | 任务状态上报通道（灵动岛显示战斗次数/胜率） |
+| `internal/ui/` | ImGui 壳（灵动岛悬浮窗 + 配置面板）、SessionController、配置 binding |
 | `internal/runtime/` | 主循环 Pause/Resume/Stop |
 | `config.json` | 仓库默认配置（面板状态另存 `/sdcard/shuaibin-cookie/ui.json`） |
 

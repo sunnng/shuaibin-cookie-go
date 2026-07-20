@@ -29,9 +29,11 @@ func renderCookiePanel(opts ShellOptions) {
 		}
 	}
 
+	imgui.PushStyleColorVec4(imgui.ColChildBg, QQBlueRailBg())
 	imgui.BeginChildStrV("panel_rail", imgui.Vec2{X: railW, Y: 0}, imgui.ChildFlagsBorders, imgui.WindowFlagsNone)
 	renderPanelRail(store)
 	imgui.EndChild()
+	imgui.PopStyleColor()
 
 	imgui.SameLine()
 
@@ -71,15 +73,17 @@ func railButton(store *Store, id, label string, active bool) {
 	}
 	imgui.PushStyleVarVec2(imgui.StyleVarFramePadding, imgui.Vec2{X: padX, Y: padY})
 	if active {
-		imgui.PushStyleColorVec4(imgui.ColButton, IndustrialAccent())
-		imgui.PushStyleColorVec4(imgui.ColButtonHovered, IndustrialAccent())
-		imgui.PushStyleColorVec4(imgui.ColButtonActive, IndustrialAccent())
+		// 选中态：天蓝底 + 白字（QQ 风选中项）
+		imgui.PushStyleColorVec4(imgui.ColButton, QQBlueAccent())
+		imgui.PushStyleColorVec4(imgui.ColButtonHovered, QQBlueAccent())
+		imgui.PushStyleColorVec4(imgui.ColButtonActive, QQBlueAccent())
+		imgui.PushStyleColorVec4(imgui.ColText, QQBlueWhite())
 	}
 	if imgui.ButtonV(label+"##rail_"+id, imgui.Vec2{X: -1, Y: btnH}) {
 		store.SetString(KeyPanelNav, id)
 	}
 	if active {
-		imgui.PopStyleColorV(3)
+		imgui.PopStyleColorV(4)
 	}
 	imgui.PopStyleVar()
 }
@@ -106,9 +110,10 @@ func renderModuleList(store *Store) {
 		label := mark + m.Title
 		selectedHere := selected == m.ID
 		if selectedHere {
-			imgui.PushStyleColorVec4(imgui.ColHeader, IndustrialAccent())
-			imgui.PushStyleColorVec4(imgui.ColHeaderHovered, IndustrialAccent())
-			imgui.PushStyleColorVec4(imgui.ColHeaderActive, IndustrialAccent())
+			imgui.PushStyleColorVec4(imgui.ColHeader, QQBlueAccent())
+			imgui.PushStyleColorVec4(imgui.ColHeaderHovered, QQBlueAccent())
+			imgui.PushStyleColorVec4(imgui.ColHeaderActive, QQBlueAccent())
+			imgui.PushStyleColorVec4(imgui.ColText, QQBlueWhite())
 		}
 		rowH := measureLabelSize(label).Y + 12
 		if rowH < 28 {
@@ -118,7 +123,7 @@ func renderModuleList(store *Store) {
 			store.SetString(KeyPanelSelected, m.ID)
 		}
 		if selectedHere {
-			imgui.PopStyleColorV(3)
+			imgui.PopStyleColorV(4)
 		}
 		if sum := moduleSummary(store, m); sum != "" {
 			imgui.TextDisabled("   " + sum)
@@ -136,7 +141,7 @@ func renderCatChips(store *Store, cat string) {
 		{PanelCatEvent, "活动"},
 		{PanelCatMaint, "维护"},
 	}
-	const padX, padY = float32(10), float32(6)
+	const padX, padY = float32(8), float32(6) // padX 收窄，保证 4 个 chip 在最小列宽内不换行
 	const gap = float32(6)
 	imgui.PushStyleVarVec2(imgui.StyleVarFramePadding, imgui.Vec2{X: padX, Y: padY})
 	imgui.PushStyleVarVec2(imgui.StyleVarItemSpacing, imgui.Vec2{X: gap, Y: gap})
@@ -155,13 +160,14 @@ func renderCatChips(store *Store, cat string) {
 		}
 		active := cat == c.id
 		if active {
-			imgui.PushStyleColorVec4(imgui.ColButton, IndustrialAccent())
+			imgui.PushStyleColorVec4(imgui.ColButton, QQBlueAccent())
+			imgui.PushStyleColorVec4(imgui.ColText, QQBlueWhite())
 		}
 		if imgui.ButtonV(c.label+"##cat_"+c.id, imgui.Vec2{X: w, Y: h}) {
 			store.SetString(KeyPanelCat, c.id)
 		}
 		if active {
-			imgui.PopStyleColorV(1)
+			imgui.PopStyleColorV(2)
 		}
 		lineStart = false
 	}
@@ -184,7 +190,7 @@ func renderModuleDetail(store *Store) {
 	imgui.SameLine()
 	on := m.EnabledKey != "" && store.GetBool(m.EnabledKey)
 	if on {
-		imgui.TextColored(IndustrialAccent(), "已启用")
+		imgui.TextColored(QQBlueAccent(), "已启用")
 	} else {
 		imgui.TextDisabled("未启用")
 	}
@@ -201,7 +207,7 @@ func renderModuleDetail(store *Store) {
 
 func renderArenaDetail(store *Store) {
 	UI_创建复选框(store, KeyArenaEnabled, "启用")
-	UI_创建数字输入框(store, KeyArenaMaxBattles, "每日战斗上限", "0=不限", float32(-1), float32(0), "#d6d8df", float64(1), float64(0), float64(999))
+	UI_创建数字输入框(store, KeyArenaMaxBattles, "每日战斗上限", "0=不限", float32(-1), float32(0), "#1f3a52", float64(1), float64(0), float64(999))
 	UI_创建数字输入框(store, KeyArenaAutoBuy, "自动购买次数", "0", float32(-1))
 	UI_创建数字输入框(store, KeyArenaTrophyDiff, "奖杯差阈值", "0", float32(-1))
 }
@@ -230,7 +236,7 @@ func renderSystemPage(opts ShellOptions) {
 
 	path := opts.ConfigPath
 	if path == "" {
-		path = "/sdcard/shuaibin-cookie/ui.json"
+		path = DefaultConfigPath
 	}
 	imgui.TextDisabled("配置文件  " + path)
 

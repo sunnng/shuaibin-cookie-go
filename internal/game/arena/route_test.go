@@ -10,9 +10,9 @@ import (
 )
 
 type routeDet struct {
-	match map[string]bool
-	ocrPt screen.Point
-	ocrOK bool
+	match  map[string]bool
+	ocrPt  screen.Point
+	ocrOK  bool
 	advOCR bool
 
 	onAdventureTap func()
@@ -33,7 +33,7 @@ func (d *routeDet) MatchMultiColor(colors string, sim float32) bool { return d.m
 func (d *routeDet) MatchImage(region screen.Region, template []byte, sim float32) (screen.Point, bool) {
 	return screen.Point{}, false
 }
-func (d *routeDet) OCRText(region screen.Region) string { return "" }
+func (d *routeDet) OCRText(region screen.Region) (string, error) { return "", nil }
 func (d *routeDet) FindOCRText(region screen.Region, keyword string) (screen.Point, bool) {
 	if keyword == "冒险" {
 		if !d.advOCR {
@@ -52,10 +52,10 @@ type routeExec struct {
 	det  *routeDet
 }
 
-func (e *routeExec) Tap(p action.Point) error {
+func (e *routeExec) Tap(p action.Point) {
 	e.taps = append(e.taps, p)
 	if e.det == nil {
-		return nil
+		return
 	}
 	if len(e.taps) == 1 && e.det.onAdventureTap != nil {
 		e.det.onAdventureTap()
@@ -63,29 +63,27 @@ func (e *routeExec) Tap(p action.Point) error {
 	if len(e.taps) == 2 && e.det.onEntryTap != nil {
 		e.det.onEntryTap()
 	}
-	return nil
 }
-func (e *routeExec) LongTap(p action.Point, ms int) error              { return nil }
-func (e *routeExec) Swipe(from, to action.Point, durationMs int) error { return nil }
-func (e *routeExec) Back() error                                       { return nil }
-func (e *routeExec) Home() error                                       { return nil }
-func (e *routeExec) Sleep(ms int)                                      {}
+func (e *routeExec) LongTap(p action.Point, ms int)              {}
+func (e *routeExec) Swipe(from, to action.Point, durationMs int) {}
+func (e *routeExec) Back()                                       {}
+func (e *routeExec) Home()                                       {}
+func (e *routeExec) Sleep(ms int)                                {}
 
 type leaveExec struct {
 	taps []action.Point
 	det  *routeDet
 }
 
-func (e *leaveExec) Tap(p action.Point) error {
+func (e *leaveExec) Tap(p action.Point) {
 	e.taps = append(e.taps, p)
 	e.det.match["lobby"] = false
-	return nil
 }
-func (e *leaveExec) LongTap(p action.Point, ms int) error              { return nil }
-func (e *leaveExec) Swipe(from, to action.Point, durationMs int) error { return nil }
-func (e *leaveExec) Back() error                                       { return nil }
-func (e *leaveExec) Home() error                                       { return nil }
-func (e *leaveExec) Sleep(ms int)                                      {}
+func (e *leaveExec) LongTap(p action.Point, ms int)              {}
+func (e *leaveExec) Swipe(from, to action.Point, durationMs int) {}
+func (e *leaveExec) Back()                                       {}
+func (e *leaveExec) Home()                                       {}
+func (e *leaveExec) Sleep(ms int)                                {}
 
 func TestRouteEnterAlreadyLobby(t *testing.T) {
 	det := &routeDet{match: map[string]bool{"lobby": true}}

@@ -25,7 +25,7 @@ func (m *mockDetector) FindMultiColorsAll(region screen.Region, colors string, s
 func (m *mockDetector) MatchImage(region screen.Region, template []byte, sim float32) (screen.Point, bool) {
 	return screen.Point{}, false
 }
-func (m *mockDetector) OCRText(region screen.Region) string { return "" }
+func (m *mockDetector) OCRText(region screen.Region) (string, error) { return "", nil }
 func (m *mockDetector) FindOCRText(region screen.Region, keyword string) (screen.Point, bool) {
 	return screen.Point{}, false
 }
@@ -51,7 +51,7 @@ func TestRuntimeRunsAndStops(t *testing.T) {
 	<-done
 }
 
-func TestRuntimeIdleUsesMaxIdleWait(t *testing.T) {
+func TestRuntimeIdleUsesMinIdleWait(t *testing.T) {
 	s := scheduler.New()
 	s.AddIdleProvider("arena", func() (time.Duration, string) {
 		return 200 * time.Millisecond, "免费刷新等待"

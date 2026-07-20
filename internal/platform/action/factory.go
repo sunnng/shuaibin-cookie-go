@@ -9,9 +9,11 @@ type stubExecutor struct{}
 
 func NewExecutor(displayId int) Executor { return &stubExecutor{} }
 
-func (s *stubExecutor) Tap(p Point) error                  { return nil }
-func (s *stubExecutor) LongTap(p Point, ms int) error      { return nil }
-func (s *stubExecutor) Swipe(from, to Point, ms int) error { return nil }
-func (s *stubExecutor) Back() error                        { return nil }
-func (s *stubExecutor) Home() error                        { return nil }
-func (s *stubExecutor) Sleep(ms int)                       { time.Sleep(time.Duration(ms) * time.Millisecond) }
+func (s *stubExecutor) Tap(p Point)                  {}
+func (s *stubExecutor) LongTap(p Point, ms int)      {}
+func (s *stubExecutor) Swipe(from, to Point, ms int) {}
+func (s *stubExecutor) Back()                        {}
+func (s *stubExecutor) Home()                        {}
+func (s *stubExecutor) Sleep(ms int) {
+	time.Sleep(time.Duration(ms) * time.Millisecond)
+}

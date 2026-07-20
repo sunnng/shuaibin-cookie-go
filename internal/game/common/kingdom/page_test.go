@@ -30,7 +30,7 @@ func (m *mockDetector) MatchMultiColor(colors string, sim float32) bool {
 func (m *mockDetector) MatchImage(region screen.Region, template []byte, sim float32) (screen.Point, bool) {
 	return screen.Point{}, false
 }
-func (m *mockDetector) OCRText(region screen.Region) string { return "" }
+func (m *mockDetector) OCRText(region screen.Region) (string, error) { return "", nil }
 func (m *mockDetector) FindOCRText(region screen.Region, keyword string) (screen.Point, bool) {
 	if m.findOCR != nil {
 		return m.findOCR(region, keyword)
@@ -42,15 +42,14 @@ type mockExecutor struct {
 	taps []action.Point
 }
 
-func (m *mockExecutor) Tap(p action.Point) error {
+func (m *mockExecutor) Tap(p action.Point) {
 	m.taps = append(m.taps, p)
-	return nil
 }
-func (m *mockExecutor) LongTap(p action.Point, ms int) error              { return nil }
-func (m *mockExecutor) Swipe(from, to action.Point, durationMs int) error { return nil }
-func (m *mockExecutor) Sleep(ms int)                                      {}
-func (m *mockExecutor) Back() error                                       { return nil }
-func (m *mockExecutor) Home() error                                       { return nil }
+func (m *mockExecutor) LongTap(p action.Point, ms int)              {}
+func (m *mockExecutor) Swipe(from, to action.Point, durationMs int) {}
+func (m *mockExecutor) Sleep(ms int)                                {}
+func (m *mockExecutor) Back()                                       {}
+func (m *mockExecutor) Home()                                       {}
 
 func TestIsKingdomHomeEmptyColorsFalse(t *testing.T) {
 	p := NewPage(&mockDetector{matchColors: map[string]bool{"": true}}, &mockExecutor{}, &Feature{})

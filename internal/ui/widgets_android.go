@@ -37,12 +37,12 @@ var (
 	uiTabActiveMap = map[string]int{}
 	baseTabStyle   = UITabStyle{
 		FontScale:       0.9,       // 标签文字字体缩放比例
-		TextColor:       "#ffffff", // 未激活文字：沉稳的深蓝灰
-		BgColor:         "#ffffff", // 未激活背景：极淡的灰白
-		HoveredColor:    "#686868", // 悬停背景：稍深一点的灰，给出反馈
-		ActiveColor:     "#686868", // 激活背景：优雅的靛蓝色
+		TextColor:       "#1f3a52", // 未激活文字：深蓝灰
+		BgColor:         "#f7fbff", // 未激活背景：极淡的蓝白
+		HoveredColor:    "#bcdcf7", // 悬停背景：浅蓝，给出反馈
+		ActiveColor:     "#2f8fd0", // 激活背景：天蓝主色
 		ActiveTextColor: "#ffffff", // 激活文字：白色
-		BorderColor:     "#cbd5e1", // 边框/分割线：浅灰蓝，不抢眼
+		BorderColor:     "#9cc3e5", // 边框/分割线：浅蓝，不抢眼
 		Height:          48,
 		MinWidth:        80,
 		PaddingX:        16,
@@ -336,7 +336,7 @@ func UI_创建按钮(id string, showName string, callback func(), opts ...interf
 	width := float32(-2)
 	height := float32(-2)
 	fontSize := float32(0) // 0=不改 WindowFontScale；>0 为缩放因子
-	textColor := "#ffffff"
+	textColor := "#1f3a52"
 
 	if len(opts) > 0 {
 		if v, ok := opts[0].(float32); ok {
@@ -500,9 +500,9 @@ func UI_倒计时加时(id string, addSeconds float64) {
 func UI_创建复选框(store *Store, key string, showName string, args ...interface{}) {
 	// 内置样式
 	var (
-		bgColor     string  = "#ffffff14"
-		checkColor  string  = "#72b3ff"
-		borderColor string  = "#ffffff28"
+		bgColor     string  = "#ffffffff"
+		checkColor  string  = "#2f8fd0"
+		borderColor string  = "#9cc3e5"
 		paddingX    float32 = 5
 		paddingY    float32 = 4
 	)
@@ -511,7 +511,7 @@ func UI_创建复选框(store *Store, key string, showName string, args ...inter
 		width     float32 = -1
 		height    float32 = -2
 		fontSize  float32 = 0
-		textColor string  = "#ffffff"
+		textColor string  = "#1f3a52"
 	)
 
 	// 解析可选参数: width, height, fontSize, textColor
@@ -629,9 +629,9 @@ func UI_创建复选框(store *Store, key string, showName string, args ...inter
 func UI_创建输入框(store *Store, key string, showName string, hint string, args ...interface{}) {
 	// 内置样式
 	const (
-		bgColor     = "#ffffff14"
-		hintColor   = "#ffffff55"
-		borderColor = "#ffffff28"
+		bgColor     = "#ffffffff"
+		hintColor   = "#7a8fa3"
+		borderColor = "#9cc3e5"
 		paddingX    = float32(8)
 		paddingY    = float32(5)
 	)
@@ -640,7 +640,7 @@ func UI_创建输入框(store *Store, key string, showName string, hint string, 
 		width     float32 = -1
 		height    float32 = -2
 		fontSize  float32 = 0
-		textColor string  = "#ffffff"
+		textColor string  = "#1f3a52"
 	)
 
 	idx := 0
@@ -737,9 +737,9 @@ func UI_创建输入框(store *Store, key string, showName string, hint string, 
 func UI_创建数字输入框(store *Store, key string, showName string, hint string, args ...interface{}) {
 
 	const (
-		bgColor     = "#ffffff14"
-		borderColor = "#ffffff28"
-		btnColor    = "#ffffff20"
+		bgColor     = "#ffffffff"
+		borderColor = "#9cc3e5"
+		btnColor    = "#dcebfa"
 		paddingX    = float32(8)
 		paddingY    = float32(5)
 	)
@@ -747,7 +747,7 @@ func UI_创建数字输入框(store *Store, key string, showName string, hint st
 	var (
 		width     float32 = -1
 		fontSize  float32 = 0
-		textColor string  = "#ffffff"
+		textColor string  = "#1f3a52"
 		step      float64 = 1
 		minVal    float64 = -1e18
 		maxVal    float64 = 1e18
@@ -834,7 +834,10 @@ func UI_创建数字输入框(store *Store, key string, showName string, hint st
 	// 按钮宽 = 高 = paddingY*2 + 字号
 	fontH := imgui.CalcTextSize("A").Y
 	btnW := fontH + paddingY*2     // 加上横向 padding
-	inputW := totalW - btnW*2 - 32 // 8 = 两个 SameLine 间距
+	inputW := totalW - btnW*2 - 32 // 预留两个 SameLine 间距(16)与安全余量(16)
+	if inputW < 40 {               // 总宽不足时保证输入框不为负（负宽在 imgui 里是右对齐语义）
+		inputW = 40
+	}
 	val := store.GetFloat(key)
 
 	// 样式
@@ -885,9 +888,9 @@ func UI_创建数字输入框(store *Store, key string, showName string, hint st
 //	textColor: hex 如 "#e65100"
 func UI_创建多行输入框(store *Store, key string, showName string, hint string, args ...interface{}) {
 	const (
-		bgColor     = "#ffffff14"
-		hintColor   = "#ffffff55"
-		borderColor = "#ffffff28"
+		bgColor     = "#ffffffff"
+		hintColor   = "#7a8fa3"
+		borderColor = "#9cc3e5"
 		paddingX    = float32(8)
 		paddingY    = float32(5)
 	)
@@ -896,7 +899,7 @@ func UI_创建多行输入框(store *Store, key string, showName string, hint st
 		width     float32 = -1
 		height    float32 = 80
 		fontSize  float32 = 0
-		textColor string  = "#ffffff"
+		textColor string  = "#1f3a52"
 	)
 
 	idx := 0
@@ -990,8 +993,8 @@ func UI_创建多行输入框(store *Store, key string, showName string, hint st
 //	textColor: hex 如 "#e65100"
 func UI_创建下拉框(store *Store, key string, showName string, options []string, args ...interface{}) {
 	const (
-		bgColor     = "#ffffff14"
-		borderColor = "#ffffff28"
+		bgColor     = "#ffffffff"
+		borderColor = "#9cc3e5"
 		paddingX    = float32(8)
 		paddingY    = float32(3)
 		maxVisible  = 5
@@ -1002,7 +1005,7 @@ func UI_创建下拉框(store *Store, key string, showName string, options []str
 		width     float32 = -1
 		height    float32 = -2
 		fontSize  float32 = 0
-		textColor string  = "#ffffff"
+		textColor string  = "#1f3a52"
 	)
 
 	idx := 0
@@ -1366,9 +1369,9 @@ var (
 // 可选参数顺序: width, height
 func UI_创建折叠(ID string, title string, defaultOpen bool, content func(), args ...interface{}) bool {
 	const (
-		bgColor     = "#ffffff14"
-		borderColor = "#ffffff28"
-		textColor   = "#ffffff"
+		bgColor     = "#ffffffff"
+		borderColor = "#9cc3e5"
+		textColor   = "#1f3a52"
 		paddingX    = float32(8)
 		paddingY    = float32(6)
 	)

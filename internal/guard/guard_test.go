@@ -4,7 +4,6 @@ import (
 	"errors"
 	"image"
 	"testing"
-	"time"
 
 	"app/internal/platform/screen"
 )
@@ -27,15 +26,19 @@ func (m *mockDetector) FindMultiColorsAll(region screen.Region, colors string, s
 func (m *mockDetector) MatchImage(region screen.Region, template []byte, sim float32) (screen.Point, bool) {
 	return screen.Point{}, false
 }
-func (m *mockDetector) OCRText(region screen.Region) string { return "" }
+func (m *mockDetector) OCRText(region screen.Region) (string, error) { return "", nil }
 func (m *mockDetector) FindOCRText(region screen.Region, keyword string) (screen.Point, bool) {
 	return screen.Point{}, false
+}
+
+func feature(colors string) screen.Feature {
+	return screen.Feature{Colors: colors, Sim: 0.9}
 }
 
 func TestGuardCheck(t *testing.T) {
 	g := New(&mockDetector{match: true})
 	handled := false
-	g.Register("popup", "feature", func() error { handled = true; return nil }, 10)
+	g.Register("popup", feature("feature"), func() error { handled = true; return nil }, 10)
 	if !g.Check() {
 		t.Fatal("expected guard to handle")
 	}
@@ -47,7 +50,7 @@ func TestGuardCheck(t *testing.T) {
 func TestGuardCheckNoMatch(t *testing.T) {
 	g := New(&mockDetector{match: false})
 	handled := false
-	g.Register("popup", "feature", func() error { handled = true; return nil }, 10)
+	g.Register("popup", feature("feature"), func() error { handled = true; return nil }, 10)
 	if g.Check() {
 		t.Fatal("expected guard not to handle")
 	}
@@ -59,9 +62,9 @@ func TestGuardCheckNoMatch(t *testing.T) {
 func TestGuardPriorityOrder(t *testing.T) {
 	g := New(&mockDetector{match: true})
 	order := []string{}
-	g.Register("low", "low", func() error { order = append(order, "low"); return nil }, 1)
-	g.Register("high", "high", func() error { order = append(order, "high"); return nil }, 10)
-	g.Register("mid", "mid", func() error { order = append(order, "mid"); return nil }, 5)
+	g.Register("low", feature("low"), func() error { order = append(order, "low"); return nil }, 1)
+	g.Register("high", feature("high"), func() error { order = append(order, "high"); return nil }, 10)
+	g.Register("mid", feature("mid"), func() error { order = append(order, "mid"); return nil }, 5)
 	g.Check()
 	if len(order) != 1 || order[0] != "high" {
 		t.Fatalf("expected high priority handler to run first, got %v", order)
@@ -70,22 +73,20 @@ func TestGuardPriorityOrder(t *testing.T) {
 
 func TestGuardHandlerError(t *testing.T) {
 	g := New(&mockDetector{match: true})
-	g.Register("popup", "feature", func() error { return errors.New("boom") }, 10)
+	g.Register("popup", feature("feature"), func() error { return errors.New("boom") }, 10)
 	if g.Check() {
 		t.Fatal("expected guard to report not handled when handler errors")
 	}
 }
 
-func TestGuardSleepChecksPeriodically(t *testing.T) {
+func TestGuardSkipsEmptyFeature(t *testing.T) {
 	g := New(&mockDetector{match: true})
 	handled := false
-	g.Register("popup", "feature", func() error { handled = true; return nil }, 10)
-	start := time.Now()
-	g.Sleep(50 * time.Millisecond)
-	if !handled {
-		t.Fatal("expected guard to be checked during sleep")
+	g.Register("unconfigured", screen.Feature{}, func() error { handled = true; return nil }, 10)
+	if g.Check() {
+		t.Fatal("empty-colors trap must never fire")
 	}
-	if time.Since(start) < 50*time.Millisecond {
-		t.Fatal("expected sleep to last at least the requested duration")
+	if handled {
+		t.Fatal("handler of skipped trap should not run")
 	}
 }

@@ -5,14 +5,12 @@ import (
 	"github.com/Dasongzi1366/AutoGo/utils"
 )
 
-func (e *AndroidExecutor) Back() error {
+func (e *AndroidExecutor) Back() {
 	motion.Back(e.displayId)
-	return nil
 }
 
-func (e *AndroidExecutor) Home() error {
+func (e *AndroidExecutor) Home() {
 	motion.Home(e.displayId)
-	return nil
 }
 
 func (e *AndroidExecutor) Sleep(ms int) {

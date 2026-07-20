@@ -1,12 +1,14 @@
 package action
 
-import "math/rand"
+import (
+	"math/rand"
 
-// Region is a tap target box in base coordinates (x1,y1,x2,y2).
-// Prefer this over a single Point for buttons so taps can be randomized.
-type Region struct {
-	X1, Y1, X2, Y2 int
-}
+	"app/internal/platform/screen"
+)
+
+// Region 是 screen.Region 的别名（基准坐标系下的 x1,y1,x2,y2 矩形）。
+// 作为点击目标时优先于单点：点击在框内随机取点。
+type Region = screen.Region
 
 // RegionConfigured reports whether r was filled by color-picking.
 // All-zero means unset.
