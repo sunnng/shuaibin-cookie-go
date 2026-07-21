@@ -49,6 +49,19 @@ func (s *Shell) PanelOpen() bool  { return s.panelOpen }
 func (s *Shell) Minimized() bool  { return s.minimized }
 func (s *Shell) AutoPaused() bool { return s.autoPaused }
 
+func (s *Shell) Title() string         { return s.opts.Title }
+func (s *Shell) ConfigPath() string    { return s.opts.ConfigPath }
+func (s *Shell) DataStorePath() string { return s.opts.DataStorePath }
+
+// BaseSize 返回基准分辨率（NewShell 已归一默认值 1600×900）。
+func (s *Shell) BaseSize() (w, h int) { return s.opts.BaseWidth, s.opts.BaseHeight }
+
+// ScriptState 代理脚本的当前生命周期状态。
+func (s *Shell) ScriptState() ScriptState { return s.ctrl.State() }
+
+// Exit 停止脚本并触发退出钩子（灵动岛「关闭」的语义）。
+func (s *Shell) Exit() { s.ctrl.Exit() }
+
 func (s *Shell) ToggleMinimized() { s.minimized = !s.minimized }
 
 // Seed 用任务字段默认值与面板偏好默认值填充 Store（仅填缺失键）。

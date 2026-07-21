@@ -8,6 +8,11 @@ import "strings"
 type Ctx struct {
 	Store *Store
 	Scale float64
+	// Theme 本帧主题（RunShell 在启动时注入）；零值时 theme() 回退 DefaultTheme。
+	Theme Theme
+	// Shell 持有本帧所属的 Shell 实例（RunShell 注入）；面板页面组件经它
+	// 访问任务表、路径与控制器。手工构造的 Ctx 可留空。
+	Shell *Shell
 
 	path   []string
 	states map[string]any
@@ -47,6 +52,26 @@ func State[T any](c *Ctx, key string, initial T) *T {
 	}
 	v := new(T)
 	*v = initial
+	c.states[full] = v
+	return v
+}
+
+// theme 返回生效主题：Ctx.Theme 为零值时回退默认主题。
+func (c *Ctx) theme() Theme {
+	if c.Theme == (Theme{}) {
+		return DefaultTheme()
+	}
+	return c.Theme
+}
+
+// resource 返回 key 对应的缓存资源，仅在缺失时调用 create 创建一次。
+// 供 android 绘制层缓存纹理等后端资源；与组件路径无关（全局缓存）。
+func (c *Ctx) resource(key string, create func() any) any {
+	full := "res\x00" + key
+	if v, ok := c.states[full]; ok {
+		return v
+	}
+	v := create()
 	c.states[full] = v
 	return v
 }

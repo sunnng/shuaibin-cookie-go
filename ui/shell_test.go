@@ -139,6 +139,22 @@ func TestShellStatusTextOnlyWhenRunning(t *testing.T) {
 	}
 }
 
+func TestShellGetters(t *testing.T) {
+	s := NewShell(ShellOptions{
+		Title: "测试脚本", ConfigPath: "/data/ui.json", DataStorePath: "/data/store.json",
+		BaseWidth: 1280, BaseHeight: 720,
+	})
+	if s.Title() != "测试脚本" || s.ConfigPath() != "/data/ui.json" || s.DataStorePath() != "/data/store.json" {
+		t.Fatal("getters")
+	}
+	if w, h := s.BaseSize(); w != 1280 || h != 720 {
+		t.Fatalf("BaseSize=%d,%d", w, h)
+	}
+	if s.ScriptState() != StateIdle {
+		t.Fatal("ScriptState should proxy controller")
+	}
+}
+
 type fakeStatus struct{ text string }
 
 func (f fakeStatus) Text() string { return f.text }

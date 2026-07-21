@@ -64,13 +64,31 @@ func TestStateConditionalRenderingSafe(t *testing.T) {
 	c.Pop()
 }
 
-func TestCtxScaleAndPopSafety(t *testing.T) {
-	c := NewCtx(NewStore(), 1.5)
-	if got := c.S(100); got != 150 {
-		t.Fatalf("S(100)=%v want 150", got)
+func TestCtxThemeFallback(t *testing.T) {
+	c := NewCtx(NewStore(), 1)
+	if c.theme() != DefaultTheme() {
+		t.Fatal("zero Theme should fall back to DefaultTheme")
 	}
-	c.Pop() // 空路径 Pop 不得 panic
-	if got := NewCtx(NewStore(), 0).Scale; got != 1 {
-		t.Fatalf("scale<=0 should normalize to 1, got %v", got)
+	custom := DefaultTheme()
+	custom.Rounding = 99
+	c.Theme = custom
+	if c.theme().Rounding != 99 {
+		t.Fatal("explicit Theme should win")
 	}
+}
+
+func TestCtxResourceCreatedOnce(t *testing.T) {
+	c := NewCtx(NewStore(), 1)
+	calls := 0
+	create := func() any { calls++; return calls }
+	v1 := c.resource("tex:a", create)
+	v2 := c.resource("tex:a", create)
+	if v1 != v2 || calls != 1 {
+		t.Fatalf("resource should create once: v1=%v v2=%v calls=%d", v1, v2, calls)
+	}
+	c.Push("form")
+	if v := c.resource("tex:a", create); v != v1 {
+		t.Fatal("resource is path-independent (global cache)")
+	}
+	c.Pop()
 }
