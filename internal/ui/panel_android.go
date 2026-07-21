@@ -10,6 +10,13 @@ import (
 )
 
 // drawConfigPanel QQ 风窗壳：蓝色渐变标题栏 + 自适应宽高 + 脚本条 + 配置内容。
+//
+// panelTitleH 标题栏高度；panelMinimized 为 true 时面板缩成只剩标题栏一条
+// （面板仍算打开，脚本保持自动暂停），再点缩小钮或重开面板恢复。
+const panelTitleH = float32(38)
+
+var panelMinimized bool
+
 func drawConfigPanel(opts ShellOptions, open *bool) bool {
 	width, height, _, _ := device.GetDisplayInfo(0)
 	winW := float32(width) * 0.72
@@ -35,25 +42,31 @@ func drawConfigPanel(opts ShellOptions, open *bool) bool {
 	x := (float32(width) - winW) / 2
 	y := 12 + (float32(height)-12-winH)/2
 
-	imgui.SetNextWindowSizeV(imgui.Vec2{X: winW, Y: winH}, imgui.CondOnce)
+	panelH := winH
+	if panelMinimized {
+		panelH = panelTitleH + 8
+	}
+	imgui.SetNextWindowSizeV(imgui.Vec2{X: winW, Y: panelH}, imgui.CondAlways)
 	imgui.SetNextWindowPosV(imgui.Vec2{X: x, Y: y}, imgui.CondOnce, imgui.Vec2{X: 0, Y: 0})
 
 	flags := imgui.WindowFlagsNoMove | imgui.WindowFlagsNoScrollbar |
 		imgui.WindowFlagsNoResize | imgui.WindowFlagsNoTitleBar
 	if imgui.BeginV(opts.Title, open, flags) {
-		drawPanelTitleBar(opts.Title, open)
-		renderScriptBar(opts, open)
-		imgui.Separator()
-		renderCookiePanel(opts)
+		drawPanelTitleBar(opts.Title, open, &panelMinimized)
+		if !panelMinimized {
+			renderScriptBar(opts, open)
+			imgui.Separator()
+			renderCookiePanel(opts)
+		}
 	}
 	imgui.End()
 
 	return *open
 }
 
-// drawPanelTitleBar QQ 风标题栏：天蓝竖向渐变底 + 左侧白色标题 + 右侧关闭圆钮。
-func drawPanelTitleBar(title string, open *bool) {
-	const titleH = float32(38)
+// drawPanelTitleBar QQ 风标题栏：天蓝竖向渐变底 + 左侧白色标题 + 右侧窗控按钮。
+// 窗控按钮按 QQ2007 风格成对出现：缩小（钢蓝方块 + 白“—”）+ 关闭（红方块 + 白“×”）。
+func drawPanelTitleBar(title string, open *bool, minimized *bool) {
 	// 记下 ImGui 默认内容原点（= border+padding，相对窗口左上角）。
 	// SetCursorPos 的坐标是相对窗口左上角的，若末尾把 X 设为 0 会把
 	// 后续内容压到窗口绝对边缘（看起来"紧贴边框"）。
@@ -62,7 +75,7 @@ func drawPanelTitleBar(title string, open *bool) {
 	winSize := imgui.WindowSize()
 	dl := imgui.WindowDrawList()
 
-	pMax := imgui.Vec2{X: winPos.X + winSize.X, Y: winPos.Y + titleH}
+	pMax := imgui.Vec2{X: winPos.X + winSize.X, Y: winPos.Y + panelTitleH}
 	top := imgui.ColorU32Vec4(QQBlueTitleTop())
 	bottom := imgui.ColorU32Vec4(QQBlueTitleBottom())
 	dl.AddRectFilledMultiColor(winPos, pMax, top, top, bottom, bottom)
@@ -70,35 +83,61 @@ func drawPanelTitleBar(title string, open *bool) {
 	white := imgui.ColorU32Vec4(QQBlueWhite())
 	textSz := measureLabelSize(title)
 	dl.AddTextVec2V(
-		imgui.Vec2{X: winPos.X + 12, Y: winPos.Y + (titleH-textSz.Y)/2},
+		imgui.Vec2{X: winPos.X + 12, Y: winPos.Y + (panelTitleH-textSz.Y)/2},
 		white,
 		title,
 	)
 
-	// 关闭圆钮（白描边 + X）
-	closeR := float32(11)
-	cx := pMax.X - titleH/2
-	cy := winPos.Y + titleH/2
-	dl.AddCircleV(imgui.Vec2{X: cx, Y: cy}, closeR, white, 0, 1.5)
-	off := closeR * 0.45
-	dl.AddLineV(
-		imgui.Vec2{X: cx - off, Y: cy - off},
-		imgui.Vec2{X: cx + off, Y: cy + off},
-		white, 1.5,
-	)
-	dl.AddLineV(
-		imgui.Vec2{X: cx + off, Y: cy - off},
-		imgui.Vec2{X: cx - off, Y: cy + off},
-		white, 1.5,
-	)
+	// 窗控按钮（右对齐成对小方块）：缩小在左，红色关闭在右。
+	const btnW, btnH = float32(24), float32(18)
+	const gap, margin = float32(4), float32(8)
+	btnY := winPos.Y + (panelTitleH-btnH)/2
+	closeX := winPos.X + winSize.X - margin - btnW
+	minX := closeX - gap - btnW
 
-	imgui.SetCursorPos(imgui.Vec2{X: winSize.X - titleH, Y: 0})
-	if imgui.InvisibleButton("##panel_close", imgui.Vec2{X: titleH, Y: titleH}) {
-		*open = false
+	// 缩小钮：钢蓝方块 + 白“—”，点击在「整条标题栏 / 完整面板」间切换。
+	imgui.SetCursorPos(imgui.Vec2{X: minX - winPos.X, Y: btnY - winPos.Y})
+	if imgui.InvisibleButton("##panel_min", imgui.Vec2{X: btnW, Y: btnH}) {
+		*minimized = !*minimized
 	}
+	minFill := imgui.Vec4{X: 0.36, Y: 0.52, Z: 0.68, W: 1}
+	if imgui.IsItemHovered() {
+		minFill = imgui.Vec4{X: 0.47, Y: 0.63, Z: 0.79, W: 1}
+	}
+	dl.AddRectFilledV(
+		imgui.Vec2{X: minX, Y: btnY},
+		imgui.Vec2{X: minX + btnW, Y: btnY + btnH},
+		imgui.ColorU32Vec4(minFill), 3, imgui.DrawFlagsRoundCornersAll,
+	)
+	midY := btnY + btnH/2
+	dl.AddLineV(imgui.Vec2{X: minX + 6, Y: midY}, imgui.Vec2{X: minX + btnW - 6, Y: midY}, white, 2)
 
-	// 内容从标题栏下方开始；X 恢复内容原点，避免贴窗口边缘
-	imgui.SetCursorPos(imgui.Vec2{X: contentX, Y: titleH + 4})
+	// 关闭钮：红色方块 + 白“×”，关闭时顺手复位缩小态，下次打开是完整面板。
+	imgui.SetCursorPos(imgui.Vec2{X: closeX - winPos.X, Y: btnY - winPos.Y})
+	if imgui.InvisibleButton("##panel_close", imgui.Vec2{X: btnW, Y: btnH}) {
+		*open = false
+		*minimized = false
+	}
+	closeFill := imgui.Vec4{X: 0.85, Y: 0.16, Z: 0.22, W: 1}
+	if imgui.IsItemHovered() {
+		closeFill = imgui.Vec4{X: 0.95, Y: 0.29, Z: 0.33, W: 1}
+	}
+	dl.AddRectFilledV(
+		imgui.Vec2{X: closeX, Y: btnY},
+		imgui.Vec2{X: closeX + btnW, Y: btnY + btnH},
+		imgui.ColorU32Vec4(closeFill), 3, imgui.DrawFlagsRoundCornersAll,
+	)
+	off := float32(4.5)
+	cx, cy := closeX+btnW/2, btnY+btnH/2
+	dl.AddLineV(imgui.Vec2{X: cx - off, Y: cy - off}, imgui.Vec2{X: cx + off, Y: cy + off}, white, 1.8)
+	dl.AddLineV(imgui.Vec2{X: cx + off, Y: cy - off}, imgui.Vec2{X: cx - off, Y: cy + off}, white, 1.8)
+
+	// 内容从标题栏下方开始；X 恢复内容原点，避免贴窗口边缘。
+	// 缩小态窗口只有标题栏高，下移光标会越出 WorkRect 触发 imgui 边界告警，且
+	// 缩小态本就没有后续内容，跳过。
+	if !*minimized {
+		imgui.SetCursorPos(imgui.Vec2{X: contentX, Y: panelTitleH + 4})
+	}
 }
 
 func renderScriptBar(opts ShellOptions, open *bool) {
@@ -117,8 +156,8 @@ func renderScriptBar(opts ShellOptions, open *bool) {
 	imgui.Text("状态：")
 	imgui.SameLine()
 	imgui.TextColored(panelStateColor(state), panelStateLabel(state))
-	imgui.SameLine()
-	imgui.TextDisabled(fmt.Sprintf("　已启用任务 %d/%d", en, total))
+	imgui.SameLineV(0, gapL)
+	imgui.TextDisabled(fmt.Sprintf("已启用任务 %d/%d", en, total))
 	imgui.SameLine()
 
 	const padX, padY = float32(14), float32(8)

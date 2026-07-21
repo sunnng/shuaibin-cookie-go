@@ -48,6 +48,7 @@ func RunShell(opts ShellOptions) {
 		island.Draw(IslandCallbacks{
 			OnSettings: func() {
 				openPanel = true
+				panelMinimized = false // 重新打开总是展开完整面板
 				// 面板大面积遮挡画面，开着面板跑识别必失败：运行中则自动暂停，关面板后恢复。
 				if opts.Controller != nil && opts.Controller.State() == StateRunning {
 					opts.Controller.Pause()

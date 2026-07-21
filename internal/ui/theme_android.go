@@ -104,3 +104,9 @@ func QQBlueRailBg() imgui.Vec4 { return HexToVec4("#cfe4f7ff") }
 
 // QQBlueWhite 标题栏/主按钮上的文字白。
 func QQBlueWhite() imgui.Vec4 { return imgui.Vec4{X: 1, Y: 1, Z: 1, W: 1} }
+
+// QQBlueTextDisabled 次要/禁用文字灰蓝（与主题 TextDisabled 一致）。
+func QQBlueTextDisabled() imgui.Vec4 { return HexToVec4("#7a8fa3ff") }
+
+// QQBlueText 正文深色（与主题 Text 一致）。
+func QQBlueText() imgui.Vec4 { return HexToVec4("#1f3a52ff") }
