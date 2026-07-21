@@ -9,8 +9,8 @@ import (
 	"app/internal/store"
 )
 
-func TestSessionReachMax(t *testing.T) {
-	s := NewSession(store.New(filepath.Join(t.TempDir(), "store.json")))
+func TestStateReachMax(t *testing.T) {
+	s := NewState(store.New(filepath.Join(t.TempDir(), "store.json")))
 	max := 3
 	cfg := &config.Arena{MaxBattles: &max}
 	s.Wins = 2
@@ -23,22 +23,22 @@ func TestSessionReachMax(t *testing.T) {
 	}
 }
 
-func TestSessionRefreshPersistence(t *testing.T) {
+func TestStateRefreshPersistence(t *testing.T) {
 	dir := t.TempDir()
-	s1 := NewSession(store.New(filepath.Join(dir, "store.json")))
+	s1 := NewState(store.New(filepath.Join(dir, "store.json")))
 	at := time.Now().Add(30 * time.Minute)
 	s1.SetNextFreeRefreshAt(at)
 
-	s2 := NewSession(store.New(filepath.Join(dir, "store.json")))
+	s2 := NewState(store.New(filepath.Join(dir, "store.json")))
 	if s2.TimeUntilRefresh() <= 0 {
 		t.Fatal("refresh time should persist")
 	}
 }
 
-func TestSessionStatusText(t *testing.T) {
+func TestStateStatusText(t *testing.T) {
 	max := 10
 	cfg := &config.Arena{MaxBattles: &max}
-	newS := func() *Session { return NewSession(store.New(filepath.Join(t.TempDir(), "store.json"))) }
+	newS := func() *State { return NewState(store.New(filepath.Join(t.TempDir(), "store.json"))) }
 
 	s := newS()
 	if got := s.StatusText(cfg); got != "竞技场 0/10" {

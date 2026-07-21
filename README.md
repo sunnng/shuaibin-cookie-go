@@ -7,8 +7,8 @@ Android 游戏自动化脚本（Go + AutoGo）。当前业务：王国竞技场�
 
 ## 架构一句话
 
-`main` → `ui.RunShell`（灵动岛 + 面板）→ `SessionController` → `buildRuntime` →  
-`runtime` 循环：`guard.Check` → `scheduler.Run` → idle；页面流程在各模块任务级 `statemachine` 中。
+`main` → `ui.RunShell`（灵动岛 + 面板）→ `ScriptController` → `buildRuntime` →  
+`runtime` 循环：`guard.Check` → `scheduler.Run` → idle；页面流程在各任务的 `statemachine` 中。
 
 ## 快速开始
 
@@ -25,10 +25,10 @@ go build ./...
 
 | 路径 | 说明 |
 |------|------|
-| `main.go` | 组合根：配置、UI、模块装配 |
-| `internal/game/arena/` | 竞技场模块 |
+| `main.go` | 组合根：配置、UI、任务装配 |
+| `internal/game/arena/` | 竞技场任务 |
 | `internal/status/` | 任务状态上报通道（灵动岛显示战斗次数/胜率） |
-| `internal/ui/` | ImGui 壳（灵动岛悬浮窗 + 配置面板）、SessionController、配置 binding |
+| `internal/ui/` | ImGui 壳（灵动岛悬浮窗 + 配置面板）、ScriptController、配置 binding |
 | `internal/runtime/` | 主循环 Pause/Resume/Stop |
 | `config.json` | 仓库默认配置（面板状态另存 `/sdcard/shuaibin-cookie/ui.json`） |
 

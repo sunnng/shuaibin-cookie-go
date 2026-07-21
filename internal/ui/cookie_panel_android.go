@@ -8,10 +8,10 @@ import (
 	"github.com/Dasongzi1366/AutoGo/imgui"
 )
 
-// settingsStatus 系统区操作反馈（仅面板会话内有效，不落盘）。
+// settingsStatus 系统区操作反馈（仅面板本次打开期间有效，不落盘）。
 var settingsStatus string
 
-// renderCookiePanel 左轨（任务/系统）+ 分类列表 + 详情；模块表见 BuiltinModules。
+// renderCookiePanel 左轨（任务/系统）+ 分类列表 + 详情；任务表见 BuiltinTasks。
 func renderCookiePanel(opts ShellOptions) {
 	store := opts.Store
 	if store == nil {
@@ -44,13 +44,13 @@ func renderCookiePanel(opts ShellOptions) {
 		imgui.EndChild()
 	default:
 		imgui.BeginChildStrV("panel_list", imgui.Vec2{X: listW, Y: 0}, imgui.ChildFlagsBorders, imgui.WindowFlagsNone)
-		renderModuleList(store)
+		renderTaskList(store)
 		imgui.EndChild()
 
 		imgui.SameLine()
 
 		imgui.BeginChildStrV("panel_detail", imgui.Vec2{X: 0, Y: 0}, imgui.ChildFlagsBorders, imgui.WindowFlagsNone)
-		renderModuleDetail(store)
+		renderTaskDetail(store)
 		imgui.EndChild()
 	}
 }
@@ -61,7 +61,7 @@ func renderPanelRail(store *Store) {
 	railButton(store, PanelNavSystem, "系统", nav == PanelNavSystem)
 
 	imgui.Dummy(imgui.Vec2{X: 0, Y: 12})
-	en, total := CountEnabled(store, BuiltinModules())
+	en, total := CountEnabled(store, BuiltinTasks())
 	imgui.TextDisabled(fmt.Sprintf("%d/%d 启用", en, total))
 }
 
@@ -88,7 +88,7 @@ func railButton(store *Store, id, label string, active bool) {
 	imgui.PopStyleVar()
 }
 
-func renderModuleList(store *Store) {
+func renderTaskList(store *Store) {
 	cat := store.GetString(KeyPanelCat)
 	if cat == "" {
 		cat = PanelCatAll
@@ -96,19 +96,19 @@ func renderModuleList(store *Store) {
 	renderCatChips(store, cat)
 
 	imgui.Separator()
-	imgui.TextDisabled("启用  模块")
+	imgui.TextDisabled("启用  任务")
 	imgui.Separator()
 
-	mods := FilterByCategory(BuiltinModules(), store.GetString(KeyPanelCat))
+	tasks := FilterByCategory(BuiltinTasks(), store.GetString(KeyPanelCat))
 	selected := store.GetString(KeyPanelSelected)
-	for _, m := range mods {
-		on := m.EnabledKey != "" && store.GetBool(m.EnabledKey)
+	for _, task := range tasks {
+		on := task.EnabledKey != "" && store.GetBool(task.EnabledKey)
 		mark := "□ "
 		if on {
 			mark = "■ "
 		}
-		label := mark + m.Title
-		selectedHere := selected == m.ID
+		label := mark + task.Title
+		selectedHere := selected == task.ID
 		if selectedHere {
 			imgui.PushStyleColorVec4(imgui.ColHeader, QQBlueAccent())
 			imgui.PushStyleColorVec4(imgui.ColHeaderHovered, QQBlueAccent())
@@ -119,18 +119,18 @@ func renderModuleList(store *Store) {
 		if rowH < 28 {
 			rowH = 28
 		}
-		if imgui.SelectableBoolV(label+"##mod_"+m.ID, selectedHere, imgui.SelectableFlagsNone, imgui.Vec2{X: 0, Y: rowH}) {
-			store.SetString(KeyPanelSelected, m.ID)
+		if imgui.SelectableBoolV(label+"##task_"+task.ID, selectedHere, imgui.SelectableFlagsNone, imgui.Vec2{X: 0, Y: rowH}) {
+			store.SetString(KeyPanelSelected, task.ID)
 		}
 		if selectedHere {
 			imgui.PopStyleColorV(4)
 		}
-		if sum := moduleSummary(store, m); sum != "" {
+		if sum := taskSummary(store, task); sum != "" {
 			imgui.TextDisabled("   " + sum)
 		}
 	}
-	if len(mods) == 0 {
-		imgui.TextDisabled("（该分类暂无模块）")
+	if len(tasks) == 0 {
+		imgui.TextDisabled("（该分类暂无任务）")
 	}
 }
 
@@ -173,31 +173,31 @@ func renderCatChips(store *Store, cat string) {
 	}
 }
 
-func renderModuleDetail(store *Store) {
-	mods := BuiltinModules()
+func renderTaskDetail(store *Store) {
+	tasks := BuiltinTasks()
 	id := store.GetString(KeyPanelSelected)
-	m, ok := FindModule(mods, id)
+	task, ok := FindTask(tasks, id)
 	if !ok {
-		if len(mods) == 0 {
-			imgui.TextDisabled("无模块")
+		if len(tasks) == 0 {
+			imgui.TextDisabled("无任务")
 			return
 		}
-		m = mods[0]
-		store.SetString(KeyPanelSelected, m.ID)
+		task = tasks[0]
+		store.SetString(KeyPanelSelected, task.ID)
 	}
 
-	imgui.Text(m.Title)
+	imgui.Text(task.Title)
 	imgui.SameLine()
-	on := m.EnabledKey != "" && store.GetBool(m.EnabledKey)
+	on := task.EnabledKey != "" && store.GetBool(task.EnabledKey)
 	if on {
 		imgui.TextColored(QQBlueAccent(), "已启用")
 	} else {
 		imgui.TextDisabled("未启用")
 	}
-	imgui.TextDisabled(fmt.Sprintf("分类=%s", categoryLabel(m.Category)))
+	imgui.TextDisabled(fmt.Sprintf("分类=%s", categoryLabel(task.Category)))
 	imgui.Separator()
 
-	switch m.ID {
+	switch task.ID {
 	case "arena":
 		renderArenaDetail(store)
 	default:
@@ -212,8 +212,8 @@ func renderArenaDetail(store *Store) {
 	UI_创建数字输入框(store, KeyArenaTrophyDiff, "奖杯差阈值", "0", float32(-1))
 }
 
-func moduleSummary(store *Store, m Module) string {
-	switch m.ID {
+func taskSummary(store *Store, task Task) string {
+	switch task.ID {
 	case "arena":
 		max := int(store.GetFloat(KeyArenaMaxBattles))
 		buy := int(store.GetFloat(KeyArenaAutoBuy))

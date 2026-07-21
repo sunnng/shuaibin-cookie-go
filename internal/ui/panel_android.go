@@ -9,7 +9,7 @@ import (
 	"github.com/Dasongzi1366/AutoGo/imgui"
 )
 
-// drawConfigPanel QQ 风窗壳：蓝色渐变标题栏 + 自适应宽高 + 会话条 + 配置内容。
+// drawConfigPanel QQ 风窗壳：蓝色渐变标题栏 + 自适应宽高 + 脚本条 + 配置内容。
 func drawConfigPanel(opts ShellOptions, open *bool) bool {
 	width, height, _, _ := device.GetDisplayInfo(0)
 	winW := float32(width) * 0.72
@@ -42,7 +42,7 @@ func drawConfigPanel(opts ShellOptions, open *bool) bool {
 		imgui.WindowFlagsNoResize | imgui.WindowFlagsNoTitleBar
 	if imgui.BeginV(opts.Title, open, flags) {
 		drawPanelTitleBar(opts.Title, open)
-		renderSessionBar(opts, open)
+		renderScriptBar(opts, open)
 		imgui.Separator()
 		renderCookiePanel(opts)
 	}
@@ -101,7 +101,7 @@ func drawPanelTitleBar(title string, open *bool) {
 	imgui.SetCursorPos(imgui.Vec2{X: contentX, Y: titleH + 4})
 }
 
-func renderSessionBar(opts ShellOptions, open *bool) {
+func renderScriptBar(opts ShellOptions, open *bool) {
 	state := StateIdle
 	if opts.Controller != nil {
 		state = opts.Controller.State()
@@ -109,7 +109,7 @@ func renderSessionBar(opts ShellOptions, open *bool) {
 
 	en, total := 0, 0
 	if opts.Store != nil {
-		en, total = CountEnabled(opts.Store, BuiltinModules())
+		en, total = CountEnabled(opts.Store, BuiltinTasks())
 	}
 
 	// 内容原点（border+padding）即起始位置，与下方左轨/列表自然对齐
@@ -118,7 +118,7 @@ func renderSessionBar(opts ShellOptions, open *bool) {
 	imgui.SameLine()
 	imgui.TextColored(panelStateColor(state), panelStateLabel(state))
 	imgui.SameLine()
-	imgui.TextDisabled(fmt.Sprintf("　已启用模块 %d/%d", en, total))
+	imgui.TextDisabled(fmt.Sprintf("　已启用任务 %d/%d", en, total))
 	imgui.SameLine()
 
 	const padX, padY = float32(14), float32(8)
@@ -144,20 +144,20 @@ func renderSessionBar(opts ShellOptions, open *bool) {
 	defer imgui.PopStyleVar()
 
 	if state == StateRunning {
-		if imgui.ButtonV(pauseLabel+"##session", imgui.Vec2{X: pauseW, Y: btnH}) {
+		if imgui.ButtonV(pauseLabel+"##script", imgui.Vec2{X: pauseW, Y: btnH}) {
 			if opts.Controller != nil {
 				opts.Controller.Pause()
 			}
 		}
 	} else if state == StatePaused {
-		if imgui.ButtonV(pauseLabel+"##session", imgui.Vec2{X: pauseW, Y: btnH}) {
+		if imgui.ButtonV(pauseLabel+"##script", imgui.Vec2{X: pauseW, Y: btnH}) {
 			if opts.Controller != nil {
 				opts.Controller.Resume()
 			}
 		}
 	} else {
 		imgui.BeginDisabled()
-		imgui.ButtonV(pauseLabel+"##session", imgui.Vec2{X: pauseW, Y: btnH})
+		imgui.ButtonV(pauseLabel+"##script", imgui.Vec2{X: pauseW, Y: btnH})
 		imgui.EndDisabled()
 	}
 
@@ -168,7 +168,7 @@ func renderSessionBar(opts ShellOptions, open *bool) {
 	imgui.PushStyleColorVec4(imgui.ColButtonHovered, QQBlueAccent())
 	imgui.PushStyleColorVec4(imgui.ColButtonActive, QQBlueAccent())
 	imgui.PushStyleColorVec4(imgui.ColText, QQBlueWhite())
-	if imgui.ButtonV(startLabel+"##session_start", imgui.Vec2{X: startW, Y: btnH}) {
+	if imgui.ButtonV(startLabel+"##script_start", imgui.Vec2{X: startW, Y: btnH}) {
 		if opts.Controller == nil {
 			imgui.PopStyleColorV(4)
 			return
@@ -185,7 +185,7 @@ func renderSessionBar(opts ShellOptions, open *bool) {
 	imgui.PopStyleColorV(4)
 }
 
-// panelStateLabel 会话状态的通俗叫法。
+// panelStateLabel 脚本状态的通俗叫法。
 func panelStateLabel(state ScriptState) string {
 	switch state {
 	case StateRunning:

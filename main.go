@@ -32,7 +32,7 @@ func main() {
 	ui.SeedFromConfig(uiStore, cfg)
 	statusReporter := status.New()
 
-	ctrl := ui.NewSessionController(ui.SessionHooks{
+	ctrl := ui.NewScriptController(ui.ScriptHooks{
 		OnStart: func() (run func() error, pause, resume, stop func()) {
 			ui.ApplyToConfig(uiStore, cfg)
 			rt := buildRuntime(cfg, statusReporter)
@@ -68,22 +68,22 @@ func buildRuntime(cfg *config.Config, statusReporter *status.Reporter) *runtime.
 	kingdomFeature := kingdom.DefaultFeature()
 	kingdomPage := kingdom.NewPage(det, exec, kingdomFeature)
 	arenaFeature := arena.DefaultFeature()
-	arenaSession := arena.NewSession(s)
+	arenaState := arena.NewState(s)
 	arenaTask := arena.NewTask(
-		&cfg.Modules.Arena,
-		det, exec, arenaFeature, kingdomPage, arenaSession, g,
+		&cfg.Tasks.Arena,
+		det, exec, arenaFeature, kingdomPage, arenaState, g,
 	)
 
 	sched.Build(scheduler.TaskOpts{
 		Name: "王国竞技场",
 		CheckEnabled: func() bool {
-			return cfg.Modules.Arena.Enabled
+			return cfg.Tasks.Arena.Enabled
 		},
 		CheckReady: func() (bool, time.Duration) {
-			if arenaSession.IsReachMaxBattles(&cfg.Modules.Arena) {
+			if arenaState.IsReachMaxBattles(&cfg.Tasks.Arena) {
 				return false, 0
 			}
-			remain := arenaSession.TimeUntilRefresh()
+			remain := arenaState.TimeUntilRefresh()
 			if remain > 0 {
 				return false, remain
 			}

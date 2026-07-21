@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>单模块六件套 · 依赖与数据流（开发模板）</title>
+  <title>单任务六件套 · 依赖与数据流（开发模板）</title>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js" integrity="sha384-en/ztfPSRkGfME4KIm05joYXynqzUgbsG5nMrj/xEFAHXkeZfO3yMK8QQ+mP7p1/" crossorigin="anonymous"></script>
@@ -51,7 +51,7 @@
     <div class="header">
       <div class="header-row">
         <div class="pulse-dot"></div>
-        <h1>单模块六件套 · 依赖与数据流</h1>
+        <h1>单任务六件套 · 依赖与数据流</h1>
         <div class="toolbar">
           <div class="toolbar-actions">
             <button onclick="copyAsImage(this)">📋 Copy</button>
@@ -61,7 +61,7 @@
           <button class="toolbar-toggle" onclick="this.parentElement.classList.toggle('expanded')" title="Export options" aria-label="Export options">⋯</button>
         </div>
       </div>
-      <p class="subtitle">feature / page / route / session / task / statemachine — 一个游戏模块内部谁持有谁、数据怎么流、测试在哪 mock（以 arena 为范本）</p>
+      <p class="subtitle">feature / page / route / state / task / statemachine — 一个游戏任务内部谁持有谁、数据怎么流、测试在哪 mock（以 arena 为范本）</p>
     </div>
 
     <div class="diagram-container">
@@ -109,7 +109,7 @@
         <text x="720" y="440" fill="#34d399" font-size="8">cfg 注入</text>
         <text x="184" y="340" fill="#34d399" font-size="8">读数据</text>
         <text x="360" y="314" fill="#34d399" font-size="8">持有 Page</text>
-        <text x="624" y="126" fill="#fbbf24" font-size="8">跨模块依赖</text>
+        <text x="624" y="126" fill="#fbbf24" font-size="8">跨任务依赖</text>
         <text x="1078" y="568" fill="#a78bfa" font-size="8">持久化</text>
         <text x="820" y="636" fill="#22d3ee" font-size="8">Run() 启动引擎</text>
         <text x="866" y="730" fill="#22d3ee" font-size="8" text-anchor="middle">每 tick 调用 / 返回 Result</text>
@@ -120,7 +120,7 @@
         <rect x="510" y="420" width="220" height="110" rx="8" fill="#0f172a"/>
         <rect x="510" y="420" width="220" height="110" rx="8" fill="rgba(6, 78, 59, 0.5)" stroke="#34d399" stroke-width="2"/>
         <text x="620" y="446" fill="white" font-size="13" font-weight="700" text-anchor="middle">task.go — Task</text>
-        <text x="620" y="466" fill="#94a3b8" font-size="8" text-anchor="middle">NewTask(): 装配 page/route/session/sm</text>
+        <text x="620" y="466" fill="#94a3b8" font-size="8" text-anchor="middle">NewTask(): 装配 page/route/state/sm</text>
         <text x="620" y="484" fill="#94a3b8" font-size="8" text-anchor="middle">Run() → sm.Init + sm.Run(handlers)</text>
         <text x="620" y="504" fill="#fb7185" font-size="8" text-anchor="middle">定义私有 page / route 接口（mock 点）</text>
         <text x="620" y="521" fill="#34d399" font-size="7" text-anchor="middle">对外只暴露 Run()</text>
@@ -140,14 +140,14 @@
         <rect x="470" y="150" width="280" height="85" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
         <text x="610" y="176" fill="white" font-size="12" font-weight="600" text-anchor="middle">route.go — Route</text>
         <text x="610" y="194" fill="#94a3b8" font-size="8" text-anchor="middle">Enter() / Leave() 进出导航</text>
-        <text x="610" y="212" fill="#94a3b8" font-size="7" text-anchor="middle">持有本模块 Page + 通用 kingdom.Page</text>
-        <text x="610" y="226" fill="#fbbf24" font-size="7" text-anchor="middle">★ 唯一允许跨模块依赖的位置</text>
+        <text x="610" y="212" fill="#94a3b8" font-size="7" text-anchor="middle">持有本任务 Page + 通用 kingdom.Page</text>
+        <text x="610" y="226" fill="#fbbf24" font-size="7" text-anchor="middle">★ 唯一允许跨任务依赖的位置</text>
 
         <!-- kingdom.Page (above route) -->
         <rect x="480" y="40" width="260" height="55" rx="6" fill="#0f172a"/>
         <rect x="480" y="40" width="260" height="55" rx="6" fill="rgba(120, 53, 15, 0.35)" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="4,3"/>
         <text x="610" y="62" fill="white" font-size="11" font-weight="600" text-anchor="middle">common/kingdom.Page</text>
-        <text x="610" y="78" fill="#94a3b8" font-size="8" text-anchor="middle">跨模块共享页（回主页/进冒险）</text>
+        <text x="610" y="78" fill="#94a3b8" font-size="8" text-anchor="middle">跨任务共享页（回主页/进冒险）</text>
 
         <!-- config (top-right) -->
         <rect x="960" y="150" width="210" height="85" rx="6" fill="#0f172a"/>
@@ -177,16 +177,16 @@
         <text x="275" y="664" fill="white" font-size="10" font-weight="600" text-anchor="middle">action.Executor</text>
         <text x="275" y="680" fill="#94a3b8" font-size="7" text-anchor="middle">接口 · Tap/Swipe</text>
 
-        <!-- session (right) -->
+        <!-- state (right) -->
         <rect x="950" y="440" width="230" height="95" rx="6" fill="#0f172a"/>
         <rect x="950" y="440" width="230" height="95" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
-        <text x="1065" y="466" fill="white" font-size="12" font-weight="600" text-anchor="middle">session.go — Session</text>
+        <text x="1065" y="466" fill="white" font-size="12" font-weight="600" text-anchor="middle">state.go — State</text>
         <text x="1065" y="484" fill="#94a3b8" font-size="8" text-anchor="middle">运行时计数 + 持久化键值</text>
         <text x="1065" y="502" fill="#94a3b8" font-size="7" text-anchor="middle">胜/平/负/票/下次刷新时间</text>
         <text x="1065" y="520" fill="#a78bfa" font-size="7" text-anchor="middle">★ 双面：handler 读写 + CheckReady 读</text>
         <text x="1065" y="531" fill="#94a3b8" font-size="7" text-anchor="middle">IsReachMaxBattles / TimeUntilRefresh</text>
 
-        <!-- store (below session) -->
+        <!-- store (below state) -->
         <rect x="980" y="600" width="180" height="60" rx="6" fill="#0f172a"/>
         <rect x="980" y="600" width="180" height="60" rx="6" fill="rgba(76, 29, 149, 0.35)" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="4,3"/>
         <text x="1070" y="624" fill="white" font-size="11" font-weight="600" text-anchor="middle">store.Store</text>
@@ -197,7 +197,7 @@
         <rect x="480" y="690" width="300" height="95" rx="6" fill="rgba(6, 78, 59, 0.45)" stroke="#34d399" stroke-width="1.5"/>
         <text x="630" y="716" fill="white" font-size="12" font-weight="600" text-anchor="middle">statemachine.go — handlers 表</text>
         <text x="630" y="734" fill="#94a3b8" font-size="8" text-anchor="middle">map[state]Handler · 纯函数集合</text>
-        <text x="630" y="752" fill="#94a3b8" font-size="7" text-anchor="middle">经 sm.Ctx.(*arenaCtx) 回调 task.page/route/session</text>
+        <text x="630" y="752" fill="#94a3b8" font-size="7" text-anchor="middle">经 sm.Ctx.(*arenaCtx) 回调 task.page/route/state</text>
         <text x="630" y="768" fill="#94a3b8" font-size="7" text-anchor="middle">返回 Next / Keep / Retry / Done / Fatal</text>
         <text x="630" y="780" fill="#34d399" font-size="7" text-anchor="middle">detect→sync→check→…→leave→Done</text>
 
@@ -213,7 +213,7 @@
         <rect x="300" y="558" width="170" height="66" rx="6" fill="transparent" stroke="#fb7185" stroke-width="1.2" stroke-dasharray="4,3"/>
         <text x="385" y="578" fill="#fb7185" font-size="9" font-weight="600" text-anchor="middle">测试 mock 点</text>
         <text x="385" y="596" fill="#94a3b8" font-size="7" text-anchor="middle">newTask(cfg, mockPage,</text>
-        <text x="385" y="608" fill="#94a3b8" font-size="7" text-anchor="middle">mockRoute, session, guard)</text>
+        <text x="385" y="608" fill="#94a3b8" font-size="7" text-anchor="middle">mockRoute, state, guard)</text>
         <text x="385" y="620" fill="#94a3b8" font-size="7" text-anchor="middle">驱动 runWithOptions</text>
 
         <!-- ============================================================ -->
@@ -223,12 +223,12 @@
         <line x1="40" y1="852" x2="82" y2="852" stroke="#34d399" stroke-width="1.6"/><text x="90" y="855" fill="#94a3b8" font-size="8">结构依赖 / 持有（实线）</text>
         <line x1="248" y1="852" x2="290" y2="852" stroke="#22d3ee" stroke-width="1.6" stroke-dasharray="6,3"/><text x="298" y="855" fill="#94a3b8" font-size="8">运行期数据流（虚线）</text>
         <line x1="470" y1="852" x2="512" y2="852" stroke="#94a3b8" stroke-width="1.5"/><text x="520" y="855" fill="#94a3b8" font-size="8">平台接口依赖</text>
-        <line x1="640" y1="852" x2="682" y2="852" stroke="#fbbf24" stroke-width="1.5"/><text x="690" y="855" fill="#94a3b8" font-size="8">跨模块依赖</text>
+        <line x1="640" y1="852" x2="682" y2="852" stroke="#fbbf24" stroke-width="1.5"/><text x="690" y="855" fill="#94a3b8" font-size="8">跨任务依赖</text>
 
         <text x="40" y="888" fill="white" font-size="10" font-weight="600">文件类型</text>
         <rect x="40" y="898" width="16" height="10" rx="2" fill="rgba(8, 51, 68, 0.5)" stroke="#22d3ee" stroke-width="1"/><text x="62" y="906" fill="#94a3b8" font-size="8">纯数据 feature</text>
         <rect x="172" y="898" width="16" height="10" rx="2" fill="rgba(6, 78, 59, 0.45)" stroke="#34d399" stroke-width="1"/><text x="194" y="906" fill="#94a3b8" font-size="8">组件 page/route/task/handlers</text>
-        <rect x="400" y="898" width="16" height="10" rx="2" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1"/><text x="422" y="906" fill="#94a3b8" font-size="8">状态 session/cfg/store</text>
+        <rect x="400" y="898" width="16" height="10" rx="2" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1"/><text x="422" y="906" fill="#94a3b8" font-size="8">状态 state/cfg/store</text>
         <rect x="560" y="898" width="16" height="10" rx="2" fill="rgba(30, 41, 59, 0.55)" stroke="#94a3b8" stroke-width="1"/><text x="582" y="906" fill="#94a3b8" font-size="8">平台接口</text>
         <rect x="678" y="898" width="16" height="10" rx="2" fill="transparent" stroke="#fb7185" stroke-width="1" stroke-dasharray="3,3"/><text x="700" y="906" fill="#94a3b8" font-size="8">mock 注入点</text>
       </svg>
@@ -240,8 +240,8 @@
         <ul>
           <li>• <b>feature.go</b>：纯数据，UI 坐标/颜色/OCR 区域，零运行时依赖</li>
           <li>• <b>page.go</b>：单页读写，Is/Read/Tap 三类，坐标走 feature</li>
-          <li>• <b>route.go</b>：Enter/Leave 导航，唯一可跨模块（借 kingdom）</li>
-          <li>• <b>session.go</b>：运行计数 + store 持久化</li>
+          <li>• <b>route.go</b>：Enter/Leave 导航，唯一可跨任务（借 kingdom）</li>
+          <li>• <b>state.go</b>：运行计数 + store 持久化</li>
           <li>• <b>task.go</b>：装配 + Run 入口，定义 mock 接口</li>
           <li>• <b>statemachine.go</b>：handler 表，纯函数，经 ctx 回调</li>
         </ul>
@@ -251,9 +251,9 @@
         <div class="card-header"><div class="card-dot emerald"></div><h3>依赖方向（无环）</h3></div>
         <ul>
           <li>• feature ← page ← route → Task → handlers</li>
-          <li>• session / cfg → Task（注入），handler 经 ctx 读</li>
+          <li>• state / cfg → Task（注入），handler 经 ctx 读</li>
           <li>• page → Detector / Executor（接口，不碰具体平台）</li>
-          <li>• 跨模块只能出现在 route（→ common/kingdom）</li>
+          <li>• 跨任务只能出现在 route（→ common/kingdom）</li>
           <li>• statemachine.Machine 引擎由框架提供，业务不重写</li>
         </ul>
       </div>
@@ -262,15 +262,15 @@
         <div class="card-header"><div class="card-dot rose"></div><h3>测试与扩展</h3></div>
         <ul>
           <li>• mock task.go 的 page/route 私有接口，newTask 注入</li>
-          <li>• session 用内存 store，runWithOptions 短 interval 驱动</li>
-          <li>• 新模块复制 6 文件，先空 feature 后填坐标</li>
-          <li>• session 同时服务任务内计数与调度器 CheckReady</li>
+          <li>• state 用内存 store，runWithOptions 短 interval 驱动</li>
+          <li>• 新任务复制 6 文件，先空 feature 后填坐标</li>
+          <li>• state 同时服务任务内计数与调度器 CheckReady</li>
           <li>• 对照 internal/game/arena/* 逐文件抄结构最稳</li>
         </ul>
       </div>
     </div>
 
-    <p class="footer">Superbin Cookie (shuaibin-cookie-go) · 单模块六件套依赖与数据流 · 2026-07-10</p>
+    <p class="footer">Superbin Cookie (shuaibin-cookie-go) · 单任务六件套依赖与数据流 · 2026-07-10</p>
   </div>
 
   <script>

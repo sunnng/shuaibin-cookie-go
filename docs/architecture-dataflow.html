@@ -198,9 +198,9 @@
 
         <!-- sub groups in Band A -->
         <rect x="230" y="60" width="430" height="100" rx="8" fill="transparent" stroke="#64748b" stroke-width="1" stroke-dasharray="4,4"/>
-        <text x="242" y="76" fill="#94a3b8" font-size="8">共享底座（接口/单例，注入到各模块）</text>
+        <text x="242" y="76" fill="#94a3b8" font-size="8">共享底座（接口/单例，注入到各任务）</text>
         <rect x="700" y="60" width="500" height="100" rx="8" fill="transparent" stroke="#34d399" stroke-width="1" stroke-dasharray="4,4"/>
-        <text x="712" y="76" fill="#34d399" font-size="8">业务模块</text>
+        <text x="712" y="76" fill="#34d399" font-size="8">业务任务</text>
 
         <!-- ============================================================= -->
         <!-- BAND A NODES                                                  -->
@@ -241,12 +241,12 @@
         <rect x="720" y="84" width="150" height="52" rx="6" fill="#0f172a"/>
         <rect x="720" y="84" width="150" height="52" rx="6" fill="rgba(6, 78, 59, 0.4)" stroke="#34d399" stroke-width="1.5"/>
         <text x="795" y="105" fill="white" font-size="11" font-weight="600" text-anchor="middle">kingdom.Page</text>
-        <text x="795" y="121" fill="#94a3b8" font-size="8" text-anchor="middle">通用主页（跨模块）</text>
+        <text x="795" y="121" fill="#94a3b8" font-size="8" text-anchor="middle">通用主页（跨任务）</text>
 
         <rect x="890" y="84" width="150" height="52" rx="6" fill="#0f172a"/>
         <rect x="890" y="84" width="150" height="52" rx="6" fill="rgba(6, 78, 59, 0.45)" stroke="#34d399" stroke-width="1.5"/>
         <text x="965" y="103" fill="white" font-size="11" font-weight="600" text-anchor="middle">arena.Task</text>
-        <text x="965" y="118" fill="#94a3b8" font-size="7" text-anchor="middle">page/route/session/sm</text>
+        <text x="965" y="118" fill="#94a3b8" font-size="7" text-anchor="middle">page/route/state/sm</text>
         <text x="965" y="129" fill="#34d399" font-size="7" text-anchor="middle">对外只暴露 Run()</text>
 
         <!-- ============================================================= -->
@@ -305,7 +305,7 @@
         <rect x="360" y="525" width="120" height="50" rx="6" fill="#0f172a"/>
         <rect x="360" y="525" width="120" height="50" rx="6" fill="rgba(76, 29, 149, 0.4)" stroke="#a78bfa" stroke-width="1.5"/>
         <text x="420" y="546" fill="white" font-size="11" font-weight="600" text-anchor="middle">sync</text>
-        <text x="420" y="562" fill="#94a3b8" font-size="7" text-anchor="middle">OCR 同步 session</text>
+        <text x="420" y="562" fill="#94a3b8" font-size="7" text-anchor="middle">OCR 同步 state</text>
 
         <!-- check -->
         <rect x="510" y="525" width="120" height="50" rx="6" fill="#0f172a"/>
@@ -395,9 +395,9 @@
           <h3>① 装配与依赖注入</h3>
         </div>
         <ul>
-          <li>• main.runBot 只做装配：一套共享底座 + 若干业务模块</li>
+          <li>• main.runBot 只做装配：一套共享底座 + 若干业务任务</li>
           <li>• Detector / Executor 是接口，业务零依赖具体平台</li>
-          <li>• arena.Task 内部自含 page/route/session/sm，对外仅 Run()</li>
+          <li>• arena.Task 内部自含 page/route/state/sm，对外仅 Run()</li>
           <li>• sched.Build 把 TaskOpts 编译成 condition + idleProvider</li>
         </ul>
       </div>

@@ -14,33 +14,33 @@ const (
 	StatePaused
 )
 
-// SessionHooks.OnStart 返回：阻塞的 run（在 goroutine 中调用）、以及 pause/resume/stop 钩子。
-type SessionHooks struct {
+// ScriptHooks.OnStart 返回：阻塞的 run（在 goroutine 中调用）、以及 pause/resume/stop 钩子。
+type ScriptHooks struct {
 	OnStart func() (run func() error, pause, resume, stop func())
 	OnExit  func()
 }
 
-type SessionController struct {
+type ScriptController struct {
 	mu     sync.Mutex
 	state  ScriptState
-	hooks  SessionHooks
+	hooks  ScriptHooks
 	pause  func()
 	resume func()
 	stop   func()
 	gen    int
 }
 
-func NewSessionController(hooks SessionHooks) *SessionController {
-	return &SessionController{hooks: hooks}
+func NewScriptController(hooks ScriptHooks) *ScriptController {
+	return &ScriptController{hooks: hooks}
 }
 
-func (c *SessionController) State() ScriptState {
+func (c *ScriptController) State() ScriptState {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.state
 }
 
-func (c *SessionController) Start() {
+func (c *ScriptController) Start() {
 	c.mu.Lock()
 	if c.state != StateIdle {
 		c.mu.Unlock()
@@ -74,7 +74,7 @@ func (c *SessionController) Start() {
 	}()
 }
 
-func (c *SessionController) Pause() {
+func (c *ScriptController) Pause() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state != StateRunning {
@@ -86,7 +86,7 @@ func (c *SessionController) Pause() {
 	c.state = StatePaused
 }
 
-func (c *SessionController) Resume() {
+func (c *ScriptController) Resume() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.state != StatePaused {
@@ -98,7 +98,7 @@ func (c *SessionController) Resume() {
 	c.state = StateRunning
 }
 
-func (c *SessionController) Stop() {
+func (c *ScriptController) Stop() {
 	c.mu.Lock()
 	stop := c.stop
 	if c.state == StateIdle {
@@ -114,7 +114,7 @@ func (c *SessionController) Stop() {
 	// owns the device (e.g. mid state-machine tick).
 }
 
-func (c *SessionController) Exit() {
+func (c *ScriptController) Exit() {
 	c.Stop()
 	if c.hooks.OnExit != nil {
 		c.hooks.OnExit()

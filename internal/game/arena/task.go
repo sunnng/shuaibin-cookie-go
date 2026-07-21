@@ -43,7 +43,7 @@ type Task struct {
 	cfg         *config.Arena
 	page        page
 	route       route
-	session     *Session
+	state       *State
 	sm          *statemachine.Machine
 	kingdomPage *kingdom.Page
 	guard       *guard.Guard
@@ -57,7 +57,7 @@ func NewTask(
 	exec action.Executor,
 	feature *Feature,
 	kingdomPage *kingdom.Page,
-	session *Session,
+	state *State,
 	guard *guard.Guard,
 ) *Task {
 	page := NewPage(det, exec, feature)
@@ -66,7 +66,7 @@ func NewTask(
 		cfg:         cfg,
 		page:        page,
 		route:       route,
-		session:     session,
+		state:       state,
 		sm:          statemachine.New(),
 		kingdomPage: kingdomPage,
 		guard:       guard,
@@ -100,7 +100,7 @@ func registerDialogTraps(g *guard.Guard, exec action.Executor, dialogs DialogsFe
 }
 
 // SetShouldStop wires a stop probe (typically runtime.IsStopped) so the
-// task-level state machine can exit between ticks when the session stops.
+// task-level state machine can exit between ticks when the script stops.
 func (t *Task) SetShouldStop(fn func() bool) {
 	t.shouldStop = fn
 }
@@ -110,12 +110,12 @@ func (t *Task) SetStatusReporter(r *status.Reporter) {
 	t.reporter = r
 }
 
-// pushStatus 把当前会话统计推给灵动岛；未接入上报时无操作。
+// pushStatus 把当前任务统计推给灵动岛；未接入上报时无操作。
 func (t *Task) pushStatus() {
 	if t.reporter == nil {
 		return
 	}
-	t.reporter.Set(t.session.StatusText(t.cfg))
+	t.reporter.Set(t.state.StatusText(t.cfg))
 }
 
 func (t *Task) Run() error {
@@ -148,15 +148,15 @@ func (t *Task) runWithOptions(opts statemachine.RunOptions) error {
 	return t.sm.Run(t.handlers(), opts)
 }
 
-// newTask constructs a Task with injected page, route and session.
+// newTask constructs a Task with injected page, route and state.
 // It is intended for unit tests in package arena.
-func newTask(cfg *config.Arena, p page, r route, session *Session, guard *guard.Guard) *Task {
+func newTask(cfg *config.Arena, p page, r route, state *State, guard *guard.Guard) *Task {
 	return &Task{
-		cfg:     cfg,
-		page:    p,
-		route:   r,
-		session: session,
-		sm:      statemachine.New(),
-		guard:   guard,
+		cfg:   cfg,
+		page:  p,
+		route: r,
+		state: state,
+		sm:    statemachine.New(),
+		guard: guard,
 	}
 }

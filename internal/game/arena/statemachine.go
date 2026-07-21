@@ -45,27 +45,27 @@ func (t *Task) handlers() map[string]statemachine.Handler {
 			ctx := sm.Ctx.(*arenaCtx)
 			medal, ticket, ok := ctx.task.page.ReadMedalAndTicket()
 			if ok {
-				ctx.task.session.Medals = medal
-				ctx.task.session.Tickets = ticket
+				ctx.task.state.Medals = medal
+				ctx.task.state.Tickets = ticket
 			}
 			trophies, ok := ctx.task.page.ReadTrophyCount()
 			if !ok {
 				logger.Warnf("[Arena] trophy OCR failed, retry")
 				return statemachine.Retry{}
 			}
-			ctx.task.session.Trophies = trophies
+			ctx.task.state.Trophies = trophies
 			logger.Infof("[Arena] sync medals=%d tickets=%d trophies=%d", medal, ticket, trophies)
 			ctx.task.pushStatus()
 			return statemachine.Next("check")
 		},
 		"check": func(sm *statemachine.Machine) statemachine.Result {
 			ctx := sm.Ctx.(*arenaCtx)
-			if ctx.task.session.IsReachMaxBattles(ctx.cfg) {
+			if ctx.task.state.IsReachMaxBattles(ctx.cfg) {
 				logger.Infof("[Arena] max battles reached")
 				return statemachine.Next("leave")
 			}
-			if ctx.task.session.Tickets <= 0 {
-				if ctx.cfg.AutoBuyCount <= 0 || ctx.task.session.BuyCount >= ctx.cfg.AutoBuyCount {
+			if ctx.task.state.Tickets <= 0 {
+				if ctx.cfg.AutoBuyCount <= 0 || ctx.task.state.BuyCount >= ctx.cfg.AutoBuyCount {
 					logger.Infof("[Arena] no tickets and cannot buy")
 					return statemachine.Next("leave")
 				}
@@ -76,34 +76,34 @@ func (t *Task) handlers() map[string]statemachine.Handler {
 		"buyTicket": func(sm *statemachine.Machine) statemachine.Result {
 			ctx := sm.Ctx.(*arenaCtx)
 			ctx.task.page.BuyTicket()
-			ctx.task.session.BuyCount++
+			ctx.task.state.BuyCount++
 			return statemachine.Next("sync")
 		},
 		"selectOpponent": func(sm *statemachine.Machine) statemachine.Result {
 			ctx := sm.Ctx.(*arenaCtx)
-			info := ctx.task.page.FindFirstValidOpponent(ctx.cfg, ctx.task.session.Trophies)
+			info := ctx.task.page.FindFirstValidOpponent(ctx.cfg, ctx.task.state.Trophies)
 			if info != nil {
 				ctx.selectedOpponent = info
 				return statemachine.Next("teamSelect")
 			}
 			// Try swipe once
 			ctx.task.page.SwipePageLeft()
-			info = ctx.task.page.FindFirstValidOpponent(ctx.cfg, ctx.task.session.Trophies)
+			info = ctx.task.page.FindFirstValidOpponent(ctx.cfg, ctx.task.state.Trophies)
 			if info != nil {
 				ctx.selectedOpponent = info
 				return statemachine.Next("teamSelect")
 			}
 			if ctx.task.page.IsFreeRefresh() {
 				ctx.task.page.TapFreeRefresh()
-				ctx.task.session.ClearNextFreeRefresh()
+				ctx.task.state.ClearNextFreeRefresh()
 				return statemachine.Next("selectOpponent")
 			}
 			// Read countdown and persist; OCR miss uses a short backoff to avoid thrash.
 			if d, ok := ctx.task.page.ReadRefreshCountdown(); ok {
-				ctx.task.session.SetNextFreeRefreshAt(time.Now().Add(d))
+				ctx.task.state.SetNextFreeRefreshAt(time.Now().Add(d))
 			} else {
 				logger.Warnf("[Arena] refresh countdown OCR failed, backoff %v", refreshOCRBackoff)
-				ctx.task.session.SetNextFreeRefreshAt(time.Now().Add(refreshOCRBackoff))
+				ctx.task.state.SetNextFreeRefreshAt(time.Now().Add(refreshOCRBackoff))
 			}
 			return statemachine.Next("leave")
 		},
@@ -132,14 +132,14 @@ func (t *Task) handlers() map[string]statemachine.Handler {
 			}
 			switch result {
 			case "胜利":
-				ctx.task.session.Wins++
+				ctx.task.state.Wins++
 			case "平局":
-				ctx.task.session.Draws++
+				ctx.task.state.Draws++
 			case "失败":
-				ctx.task.session.Losses++
+				ctx.task.state.Losses++
 			}
-			if ctx.task.session.Tickets > 0 {
-				ctx.task.session.Tickets--
+			if ctx.task.state.Tickets > 0 {
+				ctx.task.state.Tickets--
 			}
 			return statemachine.Next("sync")
 		},

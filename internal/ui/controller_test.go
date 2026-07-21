@@ -7,13 +7,13 @@ import (
 	"time"
 )
 
-func TestSessionControllerStateTransitions(t *testing.T) {
+func TestScriptControllerStateTransitions(t *testing.T) {
 	var started atomic.Int32
 	var paused atomic.Int32
 	var resumed atomic.Int32
 	var stopped atomic.Int32
 
-	c := NewSessionController(SessionHooks{
+	c := NewScriptController(ScriptHooks{
 		OnStart: func() (func() error, func(), func(), func()) {
 			started.Add(1)
 			stopCh := make(chan struct{})
@@ -68,8 +68,8 @@ func TestSessionControllerStateTransitions(t *testing.T) {
 	}
 }
 
-func TestSessionControllerRunEndReturnsIdle(t *testing.T) {
-	c := NewSessionController(SessionHooks{
+func TestScriptControllerRunEndReturnsIdle(t *testing.T) {
+	c := NewScriptController(ScriptHooks{
 		OnStart: func() (func() error, func(), func(), func()) {
 			run := func() error { return nil }
 			return run, func() {}, func() {}, func() {}
@@ -83,12 +83,12 @@ func TestSessionControllerRunEndReturnsIdle(t *testing.T) {
 	}
 }
 
-func TestSessionControllerStopBlocksStartUntilRunEnds(t *testing.T) {
+func TestScriptControllerStopBlocksStartUntilRunEnds(t *testing.T) {
 	var runCount atomic.Int32
 	var concurrent atomic.Int32
 	var maxConcurrent atomic.Int32
 
-	c := NewSessionController(SessionHooks{
+	c := NewScriptController(ScriptHooks{
 		OnStart: func() (func() error, func(), func(), func()) {
 			runCount.Add(1)
 			stopCh := make(chan struct{})

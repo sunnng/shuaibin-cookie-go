@@ -9,17 +9,17 @@ type Arena struct {
 	TrophyDiff int `json:"trophyDiff"`
 }
 
-type ModuleConfig struct {
+type TaskConfig struct {
 	Arena Arena `json:"arena"`
 }
 
 type Config struct {
-	Modules ModuleConfig `json:"modules"`
+	Tasks TaskConfig `json:"tasks"`
 }
 
 func DefaultConfig() *Config {
 	return &Config{
-		Modules: ModuleConfig{
+		Tasks: TaskConfig{
 			Arena: Arena{
 				Enabled:      true,
 				AutoBuyCount: 0,

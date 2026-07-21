@@ -16,11 +16,11 @@ func SeedFromConfig(store *Store, cfg *config.Config) {
 	if store == nil || cfg == nil {
 		return
 	}
-	seedBool(store, KeyArenaEnabled, cfg.Modules.Arena.Enabled)
-	seedFloat(store, KeyArenaAutoBuy, float64(cfg.Modules.Arena.AutoBuyCount))
-	seedFloat(store, KeyArenaTrophyDiff, float64(cfg.Modules.Arena.TrophyDiff))
-	if cfg.Modules.Arena.MaxBattles != nil {
-		seedFloat(store, KeyArenaMaxBattles, float64(*cfg.Modules.Arena.MaxBattles))
+	seedBool(store, KeyArenaEnabled, cfg.Tasks.Arena.Enabled)
+	seedFloat(store, KeyArenaAutoBuy, float64(cfg.Tasks.Arena.AutoBuyCount))
+	seedFloat(store, KeyArenaTrophyDiff, float64(cfg.Tasks.Arena.TrophyDiff))
+	if cfg.Tasks.Arena.MaxBattles != nil {
+		seedFloat(store, KeyArenaMaxBattles, float64(*cfg.Tasks.Arena.MaxBattles))
 	} else {
 		seedFloat(store, KeyArenaMaxBattles, 0)
 	}
@@ -32,15 +32,15 @@ func ApplyToConfig(store *Store, cfg *config.Config) {
 	if store == nil || cfg == nil {
 		return
 	}
-	cfg.Modules.Arena.Enabled = store.GetBool(KeyArenaEnabled)
-	cfg.Modules.Arena.AutoBuyCount = int(store.GetFloat(KeyArenaAutoBuy))
-	cfg.Modules.Arena.TrophyDiff = int(store.GetFloat(KeyArenaTrophyDiff))
+	cfg.Tasks.Arena.Enabled = store.GetBool(KeyArenaEnabled)
+	cfg.Tasks.Arena.AutoBuyCount = int(store.GetFloat(KeyArenaAutoBuy))
+	cfg.Tasks.Arena.TrophyDiff = int(store.GetFloat(KeyArenaTrophyDiff))
 
 	maxBattles := int(store.GetFloat(KeyArenaMaxBattles))
 	if maxBattles > 0 {
-		cfg.Modules.Arena.MaxBattles = &maxBattles
+		cfg.Tasks.Arena.MaxBattles = &maxBattles
 	} else {
-		cfg.Modules.Arena.MaxBattles = nil
+		cfg.Tasks.Arena.MaxBattles = nil
 	}
 }
 

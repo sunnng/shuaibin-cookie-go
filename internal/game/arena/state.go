@@ -10,7 +10,7 @@ import (
 
 const nextFreeRefreshKey = "arena_next_free_refresh_at"
 
-type Session struct {
+type State struct {
 	store *store.Store
 
 	Wins     int
@@ -22,17 +22,17 @@ type Session struct {
 	Trophies int
 }
 
-func NewSession(store *store.Store) *Session {
-	return &Session{store: store}
+func NewState(store *store.Store) *State {
+	return &State{store: store}
 }
 
-func (s *Session) TotalBattles() int {
+func (s *State) TotalBattles() int {
 	return s.Wins + s.Draws + s.Losses
 }
 
 // StatusText 生成给灵动岛展示的一行状态：战斗次数（有上限时带上限）与胜率。
 // 0 场时不显示胜率。
-func (s *Session) StatusText(cfg *config.Arena) string {
+func (s *State) StatusText(cfg *config.Arena) string {
 	total := s.TotalBattles()
 	text := "竞技场 "
 	if cfg != nil && cfg.MaxBattles != nil && *cfg.MaxBattles > 0 {
@@ -46,18 +46,18 @@ func (s *Session) StatusText(cfg *config.Arena) string {
 	return text
 }
 
-func (s *Session) IsReachMaxBattles(cfg *config.Arena) bool {
+func (s *State) IsReachMaxBattles(cfg *config.Arena) bool {
 	if cfg.MaxBattles == nil || *cfg.MaxBattles <= 0 {
 		return false
 	}
 	return s.TotalBattles() >= *cfg.MaxBattles
 }
 
-func (s *Session) SetNextFreeRefreshAt(at time.Time) {
+func (s *State) SetNextFreeRefreshAt(at time.Time) {
 	_ = s.store.Set(nextFreeRefreshKey, at.Unix())
 }
 
-func (s *Session) NextFreeRefreshAt() time.Time {
+func (s *State) NextFreeRefreshAt() time.Time {
 	ts, ok := s.store.GetInt64(nextFreeRefreshKey)
 	if !ok {
 		return time.Time{}
@@ -65,7 +65,7 @@ func (s *Session) NextFreeRefreshAt() time.Time {
 	return time.Unix(ts, 0)
 }
 
-func (s *Session) TimeUntilRefresh() time.Duration {
+func (s *State) TimeUntilRefresh() time.Duration {
 	at := s.NextFreeRefreshAt()
 	if at.IsZero() {
 		return 0
@@ -77,11 +77,11 @@ func (s *Session) TimeUntilRefresh() time.Duration {
 	return remain
 }
 
-func (s *Session) ClearNextFreeRefresh() {
+func (s *State) ClearNextFreeRefresh() {
 	_ = s.store.Delete(nextFreeRefreshKey)
 }
 
-func (s *Session) Reset() {
+func (s *State) Reset() {
 	s.Wins = 0
 	s.Draws = 0
 	s.Losses = 0

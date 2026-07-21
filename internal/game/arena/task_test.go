@@ -91,7 +91,7 @@ func (m *mockRoute) Enter() bool { m.enterCalls++; return m.enterOK }
 func (m *mockRoute) Leave() bool { m.leaveCalls++; return m.leaveOK }
 
 func newTestTask(t *testing.T, cfg *config.Arena, p page, r route) *Task {
-	s := NewSession(store.New(filepath.Join(t.TempDir(), "store.json")))
+	s := NewState(store.New(filepath.Join(t.TempDir(), "store.json")))
 	return newTask(cfg, p, r, s, nil)
 }
 
@@ -112,11 +112,11 @@ func TestArenaTaskLeavesWhenNoTicketsAndNoAutoBuy(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if task.session.Tickets != 0 {
-		t.Errorf("expected tickets to stay 0, got %d", task.session.Tickets)
+	if task.state.Tickets != 0 {
+		t.Errorf("expected tickets to stay 0, got %d", task.state.Tickets)
 	}
-	if task.session.BuyCount != 0 {
-		t.Errorf("expected no ticket purchase, got buyCount=%d", task.session.BuyCount)
+	if task.state.BuyCount != 0 {
+		t.Errorf("expected no ticket purchase, got buyCount=%d", task.state.BuyCount)
 	}
 	if r.leaveCalls == 0 {
 		t.Error("expected route.Leave to be called")
@@ -139,11 +139,11 @@ func TestArenaTaskBuysTicketWhenAllowed(t *testing.T) {
 	if p.buyTicketCalls != 1 {
 		t.Errorf("expected BuyTicket called once, got %d", p.buyTicketCalls)
 	}
-	if task.session.BuyCount != 1 {
-		t.Errorf("expected buyCount=1, got %d", task.session.BuyCount)
+	if task.state.BuyCount != 1 {
+		t.Errorf("expected buyCount=1, got %d", task.state.BuyCount)
 	}
-	if task.session.Tickets != 1 {
-		t.Errorf("expected tickets=1 after purchase, got %d", task.session.Tickets)
+	if task.state.Tickets != 1 {
+		t.Errorf("expected tickets=1 after purchase, got %d", task.state.Tickets)
 	}
 	if r.leaveCalls == 0 {
 		t.Error("expected route.Leave to be called after failing to find opponent")
@@ -175,11 +175,11 @@ func TestArenaTaskRunsBattleWhenTicketsAvailable(t *testing.T) {
 	if p.runBattleCalls != 1 {
 		t.Errorf("expected RunBattle called once, got %d", p.runBattleCalls)
 	}
-	if task.session.TotalBattles() != 1 {
-		t.Errorf("expected total battles=1, got %d", task.session.TotalBattles())
+	if task.state.TotalBattles() != 1 {
+		t.Errorf("expected total battles=1, got %d", task.state.TotalBattles())
 	}
-	if task.session.Wins != 1 {
-		t.Errorf("expected wins=1, got %d", task.session.Wins)
+	if task.state.Wins != 1 {
+		t.Errorf("expected wins=1, got %d", task.state.Wins)
 	}
 	if r.leaveCalls == 0 {
 		t.Error("expected route.Leave to be called")
@@ -198,8 +198,8 @@ func TestArenaTaskRetriesWhenTrophyOCRFails(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected retry exceeded when trophy OCR keeps failing")
 	}
-	if task.session.Trophies != 0 {
-		t.Errorf("failed OCR must not write trophies=0 as success, got %d", task.session.Trophies)
+	if task.state.Trophies != 0 {
+		t.Errorf("failed OCR must not write trophies=0 as success, got %d", task.state.Trophies)
 	}
 }
 
@@ -219,7 +219,7 @@ func TestArenaTaskBackoffWhenCountdownOCRFails(t *testing.T) {
 	if err := task.runWithOptions(fastRunOptions()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	remain := task.session.TimeUntilRefresh()
+	remain := task.state.TimeUntilRefresh()
 	if remain < 50*time.Second {
 		t.Fatalf("want refresh backoff ~60s after countdown OCR fail, remain=%v (since %v)", remain, before)
 	}
@@ -232,7 +232,7 @@ func TestArenaTaskLeavesWhenMaxBattlesReached(t *testing.T) {
 	r := &mockRoute{leaveOK: true}
 
 	task := newTestTask(t, cfg, p, r)
-	task.session.Wins = 1 // already reached max battles
+	task.state.Wins = 1 // already reached max battles
 
 	if err := task.runWithOptions(fastRunOptions()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -241,8 +241,8 @@ func TestArenaTaskLeavesWhenMaxBattlesReached(t *testing.T) {
 	if p.runBattleCalls != 0 {
 		t.Errorf("expected no battle, got %d", p.runBattleCalls)
 	}
-	if task.session.TotalBattles() != 1 {
-		t.Errorf("expected total battles unchanged at 1, got %d", task.session.TotalBattles())
+	if task.state.TotalBattles() != 1 {
+		t.Errorf("expected total battles unchanged at 1, got %d", task.state.TotalBattles())
 	}
 	if r.leaveCalls == 0 {
 		t.Error("expected route.Leave to be called")
@@ -271,8 +271,8 @@ func TestArenaTaskRetriesWhenBattleResultUnknown(t *testing.T) {
 	if p.runBattleCalls != 3 { // 首次 + MaxRetry=2 次重试
 		t.Errorf("expected RunBattle called 3 times (1+2 retries), got %d", p.runBattleCalls)
 	}
-	if task.session.TotalBattles() != 0 {
-		t.Errorf("unrecognized battle must not count as battle, got total=%d", task.session.TotalBattles())
+	if task.state.TotalBattles() != 0 {
+		t.Errorf("unrecognized battle must not count as battle, got total=%d", task.state.TotalBattles())
 	}
 }
 
@@ -300,9 +300,9 @@ func TestRegisterDialogTrapsNilGuard(t *testing.T) {
 	registerDialogTraps(nil, &mockExecutor{}, DialogsFeature{}) // must not panic
 }
 
-// pushStatus 未接入上报时无操作；接入后写入会话统计文本。
+// pushStatus 未接入上报时无操作；接入后写入任务统计文本。
 func TestTaskPushStatus(t *testing.T) {
-	s := NewSession(store.New(filepath.Join(t.TempDir(), "store.json")))
+	s := NewState(store.New(filepath.Join(t.TempDir(), "store.json")))
 	s.Wins, s.Losses = 2, 1
 	task := newTask(&config.Arena{}, nil, nil, s, nil)
 	task.pushStatus() // reporter 为 nil，不应 panic
