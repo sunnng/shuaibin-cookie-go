@@ -92,3 +92,14 @@ func TestCtxResourceCreatedOnce(t *testing.T) {
 	}
 	c.Pop()
 }
+
+func TestCtxScaleAndPopSafety(t *testing.T) {
+	c := NewCtx(NewStore(), 1.5)
+	if got := c.S(100); got != 150 {
+		t.Fatalf("S(100)=%v want 150", got)
+	}
+	c.Pop() // 空路径 Pop 不得 panic
+	if got := NewCtx(NewStore(), 0).Scale; got != 1 {
+		t.Fatalf("scale<=0 should normalize to 1, got %v", got)
+	}
+}
