@@ -6,6 +6,7 @@ import (
 )
 
 // Store 统一管理所有 UI 控件状态，以 key 为索引存储各类型值。
+// Store 非并发安全；调用方需自行同步（当前在 UI goroutine 与启动钩子内串行访问）。
 type Store struct {
 	values map[string]interface{}
 }

@@ -3,6 +3,7 @@ package ui
 // Shell 框架运行时实例（CONTEXT.md 术语见 ADR-0002）：持有全部 UI 状态
 // （面板可见性、最小化、自动暂停标记），无包级可变状态；桌面测试可起多个
 // 实例互不干扰。绘制层（Phase 2）以它为状态后端。
+// Shell 只在 UI goroutine 使用，非并发安全。
 type Shell struct {
 	opts ShellOptions
 
@@ -113,6 +114,7 @@ func (s *Shell) StartStop() error {
 		}
 		return nil
 	}
+	s.autoPaused = false
 	s.ctrl.Stop()
 	return nil
 }

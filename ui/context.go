@@ -39,6 +39,7 @@ func (c *Ctx) scope() string { return strings.Join(c.path, "/") }
 // State 返回当前组件实例内 key 对应的托管状态指针；首次访问写入 initial。
 // 同一路径 + 同一键跨帧返回同一指针；不同组件实例（路径不同）各自隔离。
 // 规则：同一组件实例内键唯一；条件渲染自由（ADR-0003）。
+// 同键不同类型重复调用会 panic（视为调用方错误）。
 func State[T any](c *Ctx, key string, initial T) *T {
 	full := c.scope() + "\x00" + key
 	if v, ok := c.states[full]; ok {

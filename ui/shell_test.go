@@ -165,3 +165,25 @@ func TestShellSeedAppliesTasksAndPanelDefaults(t *testing.T) {
 		t.Fatal("Apply should write back to app config")
 	}
 }
+
+func TestShellStopClearsAutoPaused(t *testing.T) {
+	hooks, stopCh := blockingHooks()
+	defer close(stopCh)
+	ctrl := NewScriptController(hooks)
+	s := NewShell(ShellOptions{Controller: ctrl, OpenPanelOnStart: true})
+
+	if err := s.StartStop(); err != nil {
+		t.Fatalf("StartStop: %v", err)
+	}
+	waitState(t, ctrl, StatePaused) // 面板开着启动 -> 自动暂停
+	if !s.AutoPaused() {
+		t.Fatal("expected autoPaused after start with panel open")
+	}
+
+	if err := s.StartStop(); err != nil { // 停止
+		t.Fatalf("StartStop stop: %v", err)
+	}
+	if s.AutoPaused() {
+		t.Fatal("stop should clear autoPaused")
+	}
+}
