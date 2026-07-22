@@ -28,7 +28,7 @@ go build ./...
 | `main.go` | 组合根：配置、UI、任务装配 |
 | `internal/game/arena/` | 竞技场任务 |
 | `internal/status/` | 任务状态上报通道（灵动岛显示战斗次数/胜率） |
-| `internal/ui/` | ImGui 壳（灵动岛悬浮窗 + 配置面板）、ScriptController、配置 binding |
+| `ui/` | 脚本 UI 框架：组件/灵动岛/面板/RunShell（android 绘制层 + 桌面 stub） |
 | `internal/runtime/` | 主循环 Pause/Resume/Stop |
 | `config.json` | 仓库默认配置（面板状态另存 `/sdcard/shuaibin-cookie/ui.json`） |
 

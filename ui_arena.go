@@ -15,7 +15,7 @@ func arenaTaskDescriptor(cfg *config.Config) ui.Task {
 	return ui.Task{
 		ID:         "arena",
 		Title:      "王国竞技场",
-		Category:   "日常",
+		Category:   "daily", // 旧应用持久化的分类 id（panel_cat 值兼容）；chip 经 categoryLabel 显示为「日常」
 		EnabledKey: "arena_enabled",
 		Fields: []ui.Field{
 			ui.Bool("arena_enabled", "启用",
