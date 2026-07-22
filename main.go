@@ -15,7 +15,14 @@ import (
 	"app/internal/scheduler"
 	"app/internal/status"
 	"app/internal/store"
-	"app/internal/ui"
+	"app/ui"
+)
+
+// 设备上的持久化路径（原 internal/ui/options.go，全项目唯一来源）。
+const (
+	defaultDataDir    = "/sdcard/shuaibin-cookie"
+	defaultConfigPath = defaultDataDir + "/ui.json"
+	defaultStorePath  = defaultDataDir + "/store.json"
 )
 
 func main() {
@@ -28,13 +35,14 @@ func main() {
 		return
 	}
 
+	ui.LogErrorf = logger.Errorf
 	uiStore := ui.NewStore()
-	ui.SeedFromConfig(uiStore, cfg)
 	statusReporter := status.New()
+	tasks := []ui.Task{arenaTaskDescriptor(cfg)}
 
 	ctrl := ui.NewScriptController(ui.ScriptHooks{
 		OnStart: func() (run func() error, pause, resume, stop func()) {
-			ui.ApplyToConfig(uiStore, cfg)
+			ui.ApplyAll(uiStore, tasks) // 面板值回写 cfg 后重建运行时
 			rt := buildRuntime(cfg, statusReporter)
 			return rt.Run, rt.Pause, rt.Resume, rt.Stop
 		},
@@ -45,23 +53,25 @@ func main() {
 	})
 
 	ui.RunShell(ui.ShellOptions{
-		Title:            "帅宾 Cookie",
-		ConfigPath:       ui.DefaultConfigPath,
-		DataStorePath:    ui.DefaultStorePath,
+		Title: "帅宾 Cookie",
+		Tasks: tasks,
+		Nav: []ui.NavEntry{
+			{ID: "tasks", Title: "任务", Render: ui.TaskListPage()},
+			{ID: "system", Title: "系统", Render: ui.SystemPage()},
+		},
 		Store:            uiStore,
 		Controller:       ctrl,
-		OpenPanelOnStart: true,
 		Status:           statusReporter,
-		Reseed: func(s *ui.Store) {
-			ui.SeedFromConfig(s, cfg)
-		},
+		ConfigPath:       defaultConfigPath,
+		DataStorePath:    defaultStorePath,
+		OpenPanelOnStart: true,
 	})
 }
 
 func buildRuntime(cfg *config.Config, statusReporter *status.Reporter) *runtime.Runtime {
 	det := screen.NewDetector(0)
 	exec := action.NewExecutor(0)
-	s := store.New(ui.DefaultStorePath)
+	s := store.New(defaultStorePath)
 	g := guard.New(det)
 	sched := scheduler.New()
 
