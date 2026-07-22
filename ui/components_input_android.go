@@ -10,6 +10,9 @@ import (
 
 // Checkbox 复选框组件（ADR-0003）。标签在左，勾选框紧跟右侧；勾选状态读取
 // p.Checked，切换时调用 p.OnChange(checked)。若 p.Label 为空则只显示勾选框。
+//
+// 注意：ID 与 Button 同约（"##chk_"+Label）；同一窗口内多个 Label 相同（或同为空）
+// 的复选框会产生 ID 碰撞，调用方应自行使用 ctx.Push 隔离（组件状态同理）。
 func Checkbox(ctx *Ctx, p CheckboxProps) {
 	th := ctx.theme()
 	const paddingX, paddingY = float32(5), float32(4)
@@ -46,6 +49,10 @@ func Checkbox(ctx *Ctx, p CheckboxProps) {
 //
 // 输入框使用组件状态缓存编辑字符串（State(ctx, "numbuf", "")），初始时从
 // p.Value 格式化。v1 不回写外部 p.Value 的变更。
+//
+// 注意：缓冲键只按 Ctx 路径寻址；同一路径下渲染多个 NumberInput 会共享同一
+// 缓冲（互相改写），调用方必须 ctx.Push 为每个实例隔离路径。ID 与 Button 同约
+// （"##num_/##sub_/##add_"+Label），同 Label 实例同理会碰撞。
 func NumberInput(ctx *Ctx, p NumberInputProps) {
 	th := ctx.theme()
 	const paddingX, paddingY = float32(8), float32(5)
@@ -128,6 +135,11 @@ func NumberInput(ctx *Ctx, p NumberInputProps) {
 //
 // 受控缓冲使用 State(ctx, "inbuf", p.Value) 托管；imgui 返回编辑时调用
 // p.OnChange(*buf)。v1 不回写外部 p.Value 的变更。
+//
+// 注意：缓冲键只按 Ctx 路径寻址；同一路径下渲染多个 TextInput 会共享同一
+// 缓冲（互相改写），调用方必须 ctx.Push 为每个实例隔离路径。ID 与 Button 同约
+// （"##input_/##multi_"+Label），同 Label 实例同理会碰撞。多行框高度暂为
+// 常量 80，未随 ctx.S 缩放（沿用移植源行为）。
 func TextInput(ctx *Ctx, p InputProps) {
 	th := ctx.theme()
 	const paddingX, paddingY = float32(8), float32(5)
