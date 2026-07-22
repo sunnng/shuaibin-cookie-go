@@ -179,10 +179,10 @@ func Dropdown(ctx *Ctx, p DropdownProps) {
 
 // Tabs 顶部标签栏组件（ADR-0003）。渲染为横向按钮行，当前选中项 p.Selected 使用主题
 // Accent 底色 + 白字，其余项使用按钮色 + 文字色；点击时调用 p.OnChange(i)。
-// 本组件只渲染标签栏，不渲染内容区；调用方按 Selected 自行 switch：
+// 本组件只渲染标签栏，不渲染内容区；调用方按自己的选中变量自行 switch：
 //
-//	selected := ui.Tabs(ctx, ui.TabsProps{Items: []string{"A", "B"}, Selected: sel, OnChange: func(i int){ sel = i }})
-//	switch selected {
+//	ui.Tabs(ctx, ui.TabsProps{Items: []string{"A", "B"}, Selected: sel, OnChange: func(i int) { sel = i }})
+//	switch sel {
 //	case 0:
 //	    // 渲染 A 页面
 //	case 1:
@@ -191,10 +191,10 @@ func Dropdown(ctx *Ctx, p DropdownProps) {
 //
 // 注意：ID 以首个 Item 区分；同一窗口内多个首个 Item 相同的 Tabs 会产生 ID 碰撞，
 // 调用方应自行使用 ctx.Push 隔离（组件状态同理）。
-func Tabs(ctx *Ctx, p TabsProps) int {
+func Tabs(ctx *Ctx, p TabsProps) {
 	th := ctx.theme()
 	if len(p.Items) == 0 {
-		return p.Selected
+		return
 	}
 
 	id := p.Items[0]
@@ -217,7 +217,6 @@ func Tabs(ctx *Ctx, p TabsProps) int {
 	tabBarHeight := tabH + 20
 
 	if imgui.BeginChildStrV(id+"_tab_bar", imgui.Vec2{X: 0, Y: tabBarHeight}, imgui.ChildFlagsBorders, imgui.WindowFlagsNone) {
-		defer imgui.EndChild()
 		for i, title := range p.Items {
 			active := i == p.Selected
 
@@ -265,10 +264,10 @@ func Tabs(ctx *Ctx, p TabsProps) int {
 				imgui.SameLine()
 			}
 		}
+		imgui.EndChild()
 	}
 
 	imgui.Spacing()
-	return p.Selected
 }
 
 // Collapsible 折叠面板组件（ADR-0003）。标题行是一个全宽按钮，点击切换展开态；
