@@ -1,6 +1,9 @@
 package ui
 
 import (
+	"errors"
+	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -80,6 +83,27 @@ func TestScriptControllerRunEndReturnsIdle(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	if c.State() != StateIdle {
 		t.Fatalf("want Idle after run ends, got %v", c.State())
+	}
+}
+
+func TestScriptControllerRunErrorGoesToLogHook(t *testing.T) {
+	old := LogErrorf
+	defer func() { LogErrorf = old }()
+	var got string
+	LogErrorf = func(format string, args ...any) { got = fmt.Sprintf(format, args...) }
+
+	ctrl := NewScriptController(ScriptHooks{
+		OnStart: func() (func() error, func(), func(), func()) {
+			return func() error { return errors.New("boom") }, func() {}, func() {}, func() {}
+		},
+	})
+	ctrl.Start()
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for ctrl.State() != StateIdle && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if !strings.Contains(got, "boom") {
+		t.Fatalf("LogErrorf got %q", got)
 	}
 }
 

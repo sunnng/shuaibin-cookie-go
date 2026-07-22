@@ -2,8 +2,6 @@ package ui
 
 import (
 	"sync"
-
-	"app/internal/logger"
 )
 
 type ScriptState int
@@ -19,6 +17,11 @@ type ScriptHooks struct {
 	OnStart func() (run func() error, pause, resume, stop func())
 	OnExit  func()
 }
+
+// LogErrorf 框架内部错误日志钩子（如脚本 run 返回错误）。默认丢弃；
+// 应用可替换为自身日志器（如 main 中 ui.LogErrorf = logger.Errorf）。
+// 包级变量非并发安全，应在启动早期赋值一次。
+var LogErrorf = func(format string, args ...any) {}
 
 type ScriptController struct {
 	mu     sync.Mutex
@@ -63,7 +66,7 @@ func (c *ScriptController) Start() {
 			err = run()
 		}
 		if err != nil {
-			logger.Errorf("script run error: %v", err)
+			LogErrorf("script run error: %v", err)
 		}
 		c.mu.Lock()
 		if c.gen == myGen {
