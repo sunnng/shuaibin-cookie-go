@@ -16,10 +16,10 @@ func Button(ctx *Ctx, p ButtonProps) {
 
 	w, h := float32(p.Width), float32(p.Height)
 	if w > 0 {
-		w = ctx.S(p.Width)
+		w = float32(ctx.S(p.Width))
 	}
 	if h > 0 {
-		h = ctx.S(p.Height)
+		h = float32(ctx.S(p.Height))
 	}
 	fitW, fitH := fitButtonSize(p.Label, padX, padY)
 	if w <= 0 {
