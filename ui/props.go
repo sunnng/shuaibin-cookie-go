@@ -29,6 +29,7 @@ type NumberInputProps struct {
 	Label          string
 	Value          float64
 	Min, Max, Step float64 // Max <= Min 表示不钳上界
+	Hint           string  // 占位提示，如 "0=不限"
 	Width          float64
 	OnChange       func(float64)
 }
@@ -47,9 +48,12 @@ func (p NumberInputProps) Clamp(v float64) float64 {
 }
 
 type InputProps struct {
-	Label, Hint, Value string
-	Width              float64
-	OnChange           func(string)
+	Label     string
+	Hint      string
+	Value     string
+	Multiline bool
+	Width     float64
+	OnChange  func(string)
 }
 
 type DropdownProps struct {
