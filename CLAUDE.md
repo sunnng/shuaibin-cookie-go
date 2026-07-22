@@ -35,7 +35,7 @@ For local development on non-Android hosts, the project uses build tags:
 ├── main.go                      # Entry: config → ui.RunShell (island + panel) → ScriptController builds runtime on Start
 ├── config.json                  # User preferences (tasks.arena)
 ├── go.mod                       # Module "app", replaces AutoGo to ./AutoGo
-├── ui/                        # 脚本 UI 框架（ADR-0002/0003）：纯逻辑无标签可测，android 绘制薄层（Phase 1 进行中）
+├── ui/                        # 脚本 UI 框架（ADR-0002/0003）：纯逻辑无标签可测 + android 绘制层（组件/灵动岛/面板/RunShell）
 ├── internal/
 │   ├── config/                  # Config type + LoadConfig + DefaultConfig
 │   ├── game/                    # Game tasks (arena; common/kingdom shared pages)
