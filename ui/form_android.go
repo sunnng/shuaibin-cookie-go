@@ -10,12 +10,13 @@ import "github.com/Dasongzi1366/AutoGo/imgui"
 //
 // 每个字段以 ctx.Push(f.Key()) 隔离组件状态、以 imgui.PushIDStr(f.Key())
 // 隔离 imgui ID（空 Label 控件的 ID 恒定为 "##xxx_"，无此隔离同类型字段会碰撞）。
+// Fields 内 Key 必须唯一（重复键会使状态路径与 imgui ID 双双碰撞）。
 func Form(ctx *Ctx, p FormProps) {
 	if p.Store == nil {
 		return
 	}
 	const gapM = float32(12)
-	const gapS = float32(8)
+	// 行间距用包级 gapS（taskpage_android.go），不在此重复定义。
 
 	labelW := float32(0)
 	for _, f := range p.Fields {

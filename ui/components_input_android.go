@@ -48,7 +48,8 @@ func Checkbox(ctx *Ctx, p CheckboxProps) {
 // 编辑提交后先经 p.Clamp 钳制再调用 p.OnChange。
 //
 // 输入框使用组件状态缓存编辑字符串（State(ctx, "numbuf", "")），初始时从
-// p.Value 格式化。v1 不回写外部 p.Value 的变更。
+// p.Value 格式化。v1 不回写外部 p.Value 的变更；且缓冲为空即重填，用户无法
+// 清空草稿重新输入（全选删除会在下一帧被还原，继承移植源行为）。
 //
 // 注意：缓冲键只按 Ctx 路径寻址；同一路径下渲染多个 NumberInput 会共享同一
 // 缓冲（互相改写），调用方必须 ctx.Push 为每个实例隔离路径。ID 与 Button 同约

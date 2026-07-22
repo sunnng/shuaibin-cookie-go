@@ -233,12 +233,19 @@ func renderPanelContent(ctx *Ctx, shell *Shell) {
 
 	imgui.SameLine()
 	imgui.BeginChildStrV("panel_body", imgui.Vec2{X: 0, Y: 0}, imgui.ChildFlagsBorders, imgui.WindowFlagsNone)
+	// 持久化的 nav id 可能已失效（应用改版后不再挂载）：回退到首个条目，
+	// 与旧 renderCookiePanel 的 default 分支一致；不回写 store，点击左轨自愈。
+	active := nav[0]
 	for _, entry := range nav {
-		if entry.ID == current && entry.Render != nil {
-			ctx.Push("nav:" + entry.ID)
-			entry.Render(ctx)
-			ctx.Pop()
+		if entry.ID == current {
+			active = entry
+			break
 		}
+	}
+	if active.Render != nil {
+		ctx.Push("nav:" + active.ID)
+		active.Render(ctx)
+		ctx.Pop()
 	}
 	imgui.EndChild()
 }

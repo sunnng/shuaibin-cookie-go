@@ -2,6 +2,8 @@
 
 框架的 UI 构造单元是**函数组件**：每帧执行的函数，唯一输入为一个 Props 结构体（数据 + 回调字段，如 `ButtonProps{Label, Kind, OnClick}`），组件自由组合嵌套。组件状态由框架托管，以「组件嵌套路径 + 显式键」寻址（`ui.State[T](ctx, key, initial)`），同一组件多处使用各自隔离。`Form` 组件消费字段描述符列表完成自动排版与绑定回写（ADR-0002 的"描述符自动渲染"由此组件承担）；自定义 section 即应用自写的组件组合。v1 组件清单以迁移对等为界：Button（变体）、Input、NumberInput、MultilineInput、Checkbox、Dropdown、Form、Tabs/TabItem、Collapsible、Image、Text + 布局件 Row/Column/ScrollArea——覆盖现有 `widgets_android.go` 全部能力，多一个不做。灵动岛与配置面板自身也用该组件 kit 构建（自举验证）。
 
+> **实现修订（Phase 2 落地时）**：清单交付形态有三处简化——① MultilineInput 不单设组件，由 `InputProps.Multiline` 切换；② Tabs 为受控组件（`TabsProps{Items, Selected, OnChange}`），内容区由调用方 switch，不提供 TabItem；③ Text 不单设函数，直接用 `imgui.Text*`。能力覆盖不变。
+
 ## Considered Options
 
 - **保留式组件树 + diff**：被否。与 immediate-mode 本质冲突——imgui 没有"更新已存在控件"的概念，模拟需自绘或厚适配层，工作量与风险爆炸。

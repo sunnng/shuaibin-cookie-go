@@ -177,7 +177,9 @@ func renderTaskDetail(ctx *Ctx, store *Store, tasks []Task, th Theme) {
 		store.SetString(KeyPanelSelected, task.ID)
 	}
 
-	// 头部：任务名 + 状态胶囊 + 分类（弱色）。
+	// 头部：任务名 + 状态胶囊 + 分类（弱色）。本行全是文字/手绘元素，
+	// 不用 AlignTextToFramePadding（它只下移文字而 SameLine 回到原行起点，
+	// 会把胶囊抬高出 FramePadding.y 的偏差）。
 	imgui.Text(task.Title)
 	imgui.SameLineV(0, gapS)
 	on := task.EnabledKey != "" && store.GetBool(task.EnabledKey)
@@ -188,13 +190,14 @@ func renderTaskDetail(ctx *Ctx, store *Store, tasks []Task, th Theme) {
 	imgui.Separator()
 	imgui.Dummy(imgui.Vec2{X: 0, Y: gapXS})
 
+	// 两条详情路径都按任务隔离组件状态（同名字段键的草稿缓冲不互串）。
+	ctx.Push("detail:" + task.ID)
 	if task.RenderDetail != nil {
-		ctx.Push("detail:" + task.ID)
 		task.RenderDetail(ctx)
-		ctx.Pop()
 	} else {
 		Form(ctx, FormProps{Store: store, Fields: task.Fields})
 	}
+	ctx.Pop()
 }
 
 // drawEnabledPill 状态胶囊：已启用=天蓝底白字 / 未启用=灰蓝底白字。

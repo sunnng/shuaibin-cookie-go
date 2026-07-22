@@ -264,8 +264,9 @@ func Tabs(ctx *Ctx, p TabsProps) {
 				imgui.SameLine()
 			}
 		}
-		imgui.EndChild()
 	}
+	// imgui 契约：BeginChild 无论返回值都要配 EndChild（返回 false 仅表示裁剪）。
+	imgui.EndChild()
 
 	imgui.Spacing()
 }
