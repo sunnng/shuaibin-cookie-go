@@ -252,6 +252,9 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 **Files:**
 - Modify: `main.go`
+- Create: `ui/taskpage_stub.go`、`ui/system_stub.go`（`//go:build !android || !cgo`）
+
+> **计划修正（执行时发现）**：`ui.TaskListPage()`/`ui.SystemPage()` 仅存在于 `android && cgo` 文件；无构建标签的 main.go 引用它们会导致桌面编译失败。需配套两个桌面符号桩（与 `ui/run_stub.go` 同标签拆分约定，返回空渲染函数）。
 
 **Interfaces:**
 - Consumes: Task 1/2 全部产出、`ui.RunShell`、`ui.TaskListPage()`、`ui.SystemPage()`、`ui.NavEntry`、`ui.ScriptHooks`
