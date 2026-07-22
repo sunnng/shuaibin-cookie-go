@@ -81,9 +81,10 @@ func (s *Shell) Apply() {
 }
 
 // OpenPanel 打开配置面板；脚本运行中时自动暂停（遮挡策略：面板遮挡画面
-// 期间不识别）。
+// 期间不识别）。重开总是展开完整面板（复位最小化，与旧 internal/ui 行为一致）。
 func (s *Shell) OpenPanel() {
 	s.panelOpen = true
+	s.minimized = false
 	if s.ctrl.State() == StateRunning {
 		s.ctrl.Pause()
 		s.autoPaused = true

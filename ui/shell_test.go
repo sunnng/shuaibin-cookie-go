@@ -72,6 +72,18 @@ func TestShellOpenPanelAutoPausesAndCloseResumes(t *testing.T) {
 	}
 }
 
+func TestShellOpenPanelResetsMinimized(t *testing.T) {
+	s := NewShell(ShellOptions{})
+	s.ToggleMinimized()
+	if !s.Minimized() {
+		t.Fatal("expected minimized after toggle")
+	}
+	s.OpenPanel()
+	if s.Minimized() {
+		t.Fatal("open panel should reset minimized (reopen always shows full panel)")
+	}
+}
+
 func TestShellManualResumeOverridesAutoPause(t *testing.T) {
 	hooks, stopCh := blockingHooks()
 	defer close(stopCh)
