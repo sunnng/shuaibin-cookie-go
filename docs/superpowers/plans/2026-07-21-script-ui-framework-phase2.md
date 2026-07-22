@@ -860,7 +860,6 @@ func renderPanelContent(ctx *Ctx, shell *Shell) {
 	}
 	th := ctx.theme()
 
-	avail := imgui.ContentRegionAvail()
 	railW := float32(ctx.S(120))
 
 	imgui.PushStyleColorVec4(imgui.ColChildBg, toVec4(th.RailBg))
