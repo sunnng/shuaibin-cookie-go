@@ -35,6 +35,19 @@ func TestStoreSaveLoadRoundtrip(t *testing.T) {
 	}
 }
 
+func TestStoreSaveConfigCreatesParentDir(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "nested", "ui.json")
+	s := NewStore()
+	s.SetBool("ok", true)
+	if err := s.SaveConfig(path); err != nil {
+		t.Fatalf("SaveConfig should mkdir parent: %v", err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("expected file at %s: %v", path, err)
+	}
+}
+
 func TestClearPanelCache(t *testing.T) {
 	dir := t.TempDir()
 	uiPath := filepath.Join(dir, "ui.json")

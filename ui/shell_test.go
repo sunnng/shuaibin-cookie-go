@@ -133,6 +133,24 @@ func TestShellStartWhilePanelOpenAutoPausesAndSaves(t *testing.T) {
 	}
 }
 
+// 回归：父目录不存在时旧实现忽略 SaveConfig 错误仍能 Start；
+// 迁移后 StartStop 遇错直接 return，面板「开始」表现为点了没反应。
+func TestShellStartStopCreatesMissingConfigDir(t *testing.T) {
+	hooks, stopCh := blockingHooks()
+	defer close(stopCh)
+	ctrl := NewScriptController(hooks)
+	cfgPath := filepath.Join(t.TempDir(), "missing-subdir", "ui.json")
+
+	s := NewShell(ShellOptions{Controller: ctrl, ConfigPath: cfgPath})
+	if err := s.StartStop(); err != nil {
+		t.Fatalf("StartStop: %v", err)
+	}
+	waitState(t, ctrl, StateRunning)
+	if _, err := os.Stat(cfgPath); err != nil {
+		t.Fatalf("config should be saved: %v", err)
+	}
+}
+
 func TestShellStatusTextOnlyWhenRunning(t *testing.T) {
 	hooks, stopCh := blockingHooks()
 	defer close(stopCh)

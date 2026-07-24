@@ -3,6 +3,7 @@ package ui
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 )
 
 // Store 统一管理所有 UI 控件状态，以 key 为索引存储各类型值。
@@ -57,6 +58,13 @@ func (s *Store) SaveConfig(path string) error {
 	b, err := json.Marshal(s.values)
 	if err != nil {
 		return err
+	}
+	// 设备路径（如 /sdcard/shuaibin-cookie/ui.json）首启时父目录可能不存在；
+	// 不 MkdirAll 则 WriteFile 失败，面板「开始」经 StartStop 会静默中止启动。
+	if dir := filepath.Dir(path); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
 	}
 	return os.WriteFile(path, b, 0o644)
 }
