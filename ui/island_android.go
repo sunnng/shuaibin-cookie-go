@@ -10,12 +10,13 @@ import (
 	"github.com/Dasongzi1366/AutoGo/imgui"
 )
 
-// floatingIsland 苹果刘海（灵动岛）样式悬浮窗：顶部居中的黑色胶囊，
-// 点击展开为圆角卡片，提供 开始/停止、暂停/继续、设置、关闭 四个操作。
+// floatingIsland 灵动岛样式悬浮窗：顶部居中的深色胶囊，点击展开为圆角卡片，
+// 提供 开始/停止、暂停/继续、设置、关闭 四个操作（图标 + 文字标签）。
 // 固定在顶部居中，不可拖动（与真实刘海一致）；展开后再点卡片空白处或卡片外任意处收起，
 // 展开超过 islandAutoCollapse 无操作也会自动收起，避免长时间遮挡游戏画面干扰识别。
 // 业务运行状态由 Shell 提供，岛内部只保留 UI 状态。
-// 注意：灵动岛是深色浮层，不走 Theme；缩放为本岛局部策略，不经 ctx.S。
+// 视觉为糖果积木语言（docs/ui-redesign/design-system.md §4.1）：深色底 +
+// 3px 状态色描边 + 纸面圆角方块按钮 + 墨色图标；岛不走 Theme，缩放为本岛局部策略。
 type floatingIsland struct {
 	ScreenWidth  int
 	ScreenHeight int
@@ -35,12 +36,15 @@ func newFloatingIsland() *floatingIsland {
 const (
 	islandRefWidth   = float32(1600)
 	islandTopMargin  = float32(14)
-	islandPillHeight = float32(60)
-	islandCardWidth  = float32(560)
-	islandCardHeight = float32(190)
-	islandCardRadius = float32(34)
-	islandBtnRadius  = float32(34)
-	islandBtnSpacing = float32(120)
+	islandPillHeight = float32(64)
+	islandPillMinW   = float32(240)
+	islandCardWidth  = float32(600)
+	islandCardHeight = float32(224)
+	islandCardRadius = float32(28)
+	islandBtnSize    = float32(64)  // 纸面方块边长
+	islandBtnHit     = float32(88)  // 热区（触控目标）
+	islandBtnSpacing = float32(100) // 按钮中心距（64 方块 + 36 间隙）
+	islandBtnRadius  = float32(18)  // 方块圆角
 )
 
 // islandAutoCollapse 展开卡片的无操作自动收起时长。
@@ -55,27 +59,15 @@ const (
 )
 
 var (
-	islandBg     = imgui.Vec4{X: 0.02, Y: 0.02, Z: 0.03, W: 0.96}
-	islandBorder = imgui.Vec4{X: 1.0, Y: 1.0, Z: 1.0, W: 0.10}
-	islandText   = imgui.Vec4{X: 0.92, Y: 0.93, Z: 0.96, W: 1.0}
-
-	// 苹果风格按钮：iOS 控制中心式半透明灰圆底 + 单色图标；
-	// 彩色只留给破坏性操作（系统红）与状态点。
-	islandBtnBg  = imgui.Vec4{X: 1.0, Y: 1.0, Z: 1.0, W: 0.12}
-	islandGlyph  = imgui.Vec4{X: 1.0, Y: 1.0, Z: 1.0, W: 0.95}
-	islandDanger = imgui.Vec4{X: 1.0, Y: 0.27, Z: 0.23, W: 1.0}
+	// #17130C 97% 不透明：深色底压得住任何游戏画面。
+	islandBg      = imgui.Vec4{X: 0.090, Y: 0.075, Z: 0.047, W: 0.97}
+	islandText    = imgui.Vec4{X: 0.929, Y: 0.914, Z: 0.886, W: 1.0} // #EDE9E2
+	islandSubText = imgui.Vec4{X: 0.729, Y: 0.698, Z: 0.651, W: 1.0} // #B9B2A6 按钮文字标签
 )
 
-// 状态点颜色（依据脚本状态）。
+// islandStateColor 状态点 / 胶囊描边共用：空闲蓝 / 运行绿 / 暂停橙（糖果色）。
 func islandStateColor(state ScriptState) imgui.Vec4 {
-	switch state {
-	case StateRunning:
-		return imgui.Vec4{X: 0.2, Y: 0.8, Z: 0.3, W: 1.0}
-	case StatePaused:
-		return imgui.Vec4{X: 1.0, Y: 0.85, Z: 0.2, W: 1.0}
-	default:
-		return imgui.Vec4{X: 0.2, Y: 0.6, Z: 1.0, W: 1.0}
-	}
+	return candyStateColor(state)
 }
 
 func islandStateLabel(state ScriptState) string {
@@ -134,9 +126,12 @@ func (isl *floatingIsland) scale() float32 {
 }
 
 type islandButton struct {
-	pos    imgui.Vec2
-	radius float32
-	icon   int
+	pos     imgui.Vec2 // 方块中心
+	size    float32    // 方块边长
+	hit     float32    // 热区边长
+	icon    int
+	label   string
+	enabled bool
 }
 
 type islandLayout struct {
@@ -147,7 +142,7 @@ type islandLayout struct {
 }
 
 // layout 计算本帧胶囊/卡片矩形（展开动画对宽高与圆角做插值）与按钮排布。
-func (isl *floatingIsland) layout(label string) islandLayout {
+func (isl *floatingIsland) layout(label string, state ScriptState) islandLayout {
 	s := isl.scale()
 	anim := easeOutCubic(isl.ExpandAnim)
 
@@ -166,29 +161,52 @@ func (isl *floatingIsland) layout(label string) islandLayout {
 	l.x = (float32(isl.ScreenWidth) - l.w) / 2
 	l.y = islandTopMargin * s
 
+	// 按钮方块居中排布，底部预留文字标签行。
+	labelH := measureLabelSize("设置").Y
+	boxCY := l.y + cardH - 20*s - labelH - 8*s - islandBtnSize*s/2
 	centerX := l.x + l.w/2
-	btnY := l.y + cardH - 62*s
+	labels := islandButtonLabels(state)
 	for i := 0; i < 4; i++ {
 		l.buttons = append(l.buttons, islandButton{
-			pos:    imgui.Vec2{X: centerX + (float32(i)-1.5)*islandBtnSpacing*s, Y: btnY},
-			radius: islandBtnRadius * s,
-			icon:   i,
+			pos:     imgui.Vec2{X: centerX + (float32(i)-1.5)*islandBtnSpacing*s, Y: boxCY},
+			size:    islandBtnSize * s,
+			hit:     islandBtnHit * s,
+			icon:    i,
+			label:   labels[i],
+			enabled: i != islandIconPauseResume || state != StateIdle, // 空闲时暂停钮禁用
 		})
 	}
 	return l
 }
 
-// pillWidth 胶囊宽度随状态文字自适应（灵动岛风格：内容多宽胶囊就多宽）。
+// islandButtonLabels 展开卡片的按钮文字标签（随状态切换）。
+func islandButtonLabels(state ScriptState) [4]string {
+	labels := [4]string{"开始", "暂停", "设置", "关闭"}
+	if state != StateIdle {
+		labels[0] = "停止"
+	}
+	if state == StatePaused {
+		labels[1] = "继续"
+	}
+	return labels
+}
+
+// pillWidth 胶囊宽度随状态文字自适应（灵动岛风格：内容多宽胶囊就多宽），
+// 下限 islandPillMinW，避免短文案时胶囊过窄。
 func (isl *floatingIsland) pillWidth(label string, s float32) float32 {
 	textW := measureLabelSize(label).X
 	dotD := float32(18) * s
 	gap := float32(10) * s
 	pad := float32(24) * s
-	return pad*2 + dotD + gap + textW
+	w := pad*2 + dotD + gap + textW
+	if min := islandPillMinW * s; w < min {
+		w = min
+	}
+	return w
 }
 
 func (isl *floatingIsland) drawWindow(shell *Shell, state ScriptState, label string) {
-	l := isl.layout(label)
+	l := isl.layout(label, state)
 
 	imgui.SetNextWindowPosV(imgui.Vec2{X: l.x, Y: l.y}, imgui.CondAlways, imgui.Vec2{})
 	imgui.SetNextWindowSizeV(imgui.Vec2{X: l.w, Y: l.h}, imgui.CondAlways)
@@ -210,7 +228,12 @@ func (isl *floatingIsland) drawWindow(shell *Shell, state ScriptState, label str
 	pMin := imgui.Vec2{X: l.x, Y: l.y}
 	pMax := imgui.Vec2{X: l.x + l.w, Y: l.y + l.h}
 	drawList.AddRectFilledV(pMin, pMax, imgui.ColorU32Vec4(islandBg), l.radius, imgui.DrawFlagsRoundCornersAll)
-	drawList.AddRectV(pMin, pMax, imgui.ColorU32Vec4(islandBorder), l.radius, imgui.DrawFlagsRoundCornersAll, 1)
+	// 3px 状态色描边：与状态点同色，远远一瞥即知状态。
+	borderW := 3 * l.scale
+	if borderW < 2 {
+		borderW = 2
+	}
+	drawList.AddRectV(pMin, pMax, imgui.ColorU32Vec4(islandStateColor(state)), l.radius, imgui.DrawFlagsRoundCornersAll, borderW)
 
 	if l.anim < 0.85 {
 		isl.drawPillContent(drawList, l, state, label)
@@ -242,7 +265,7 @@ func (isl *floatingIsland) drawPillContent(drawList *imgui.DrawList, l islandLay
 	)
 }
 
-// drawCardContent 展开态：顶部状态行 + 一排四个苹果风格图标按钮。
+// drawCardContent 展开态：顶部状态行 + 一排四个纸面方块按钮（墨色图标 + 文字标签）。
 func (isl *floatingIsland) drawCardContent(drawList *imgui.DrawList, l islandLayout, state ScriptState, label string) {
 	textSz := measureLabelSize(label)
 	dotD := float32(14) * l.scale
@@ -259,12 +282,36 @@ func (isl *floatingIsland) drawCardContent(drawList *imgui.DrawList, l islandLay
 	)
 
 	for _, b := range l.buttons {
-		drawList.AddCircleFilled(b.pos, b.radius, imgui.ColorU32Vec4(islandBtnBg))
-		drawIslandIcon(drawList, b.pos, b.radius, b.icon, state)
+		half := b.size / 2
+		pMin := imgui.Vec2{X: b.pos.X - half, Y: b.pos.Y - half}
+		pMax := imgui.Vec2{X: b.pos.X + half, Y: b.pos.Y + half}
+		box := candyPaper
+		if b.icon == islandIconClose {
+			box = candyRed // 破坏性操作：红底
+		}
+		if !b.enabled {
+			box.W *= 0.35
+		}
+		radius := islandBtnRadius * l.scale
+		drawList.AddRectFilledV(pMin, pMax, imgui.ColorU32Vec4(box), radius, imgui.DrawFlagsRoundCornersAll)
+		drawIslandIcon(drawList, b.pos, half, b.icon, state, b.enabled)
+
+		// 图标下文字标签（解决纯图标新用户不可发现的痛点）。
+		labSz := measureLabelSize(b.label)
+		labCol := islandSubText
+		if !b.enabled {
+			labCol.W *= 0.35
+		}
+		drawList.AddTextVec2V(
+			imgui.Vec2{X: b.pos.X - labSz.X/2, Y: pMax.Y + 8*l.scale},
+			imgui.ColorU32Vec4(labCol),
+			b.label,
+		)
 	}
 }
 
-// handleInput 命中检测：收起点胶囊展开；展开点按钮执行并收起；再点卡片空白处或卡片外收起。
+// handleInput 命中检测：收起点胶囊展开；展开点按钮（热区 88×88 方块）执行并收起；
+// 再点卡片空白处或卡片外收起。禁用的按钮（空闲时的暂停）不响应。
 func (isl *floatingIsland) handleInput(l islandLayout, shell *Shell) {
 	if !imgui.IsMouseReleased(imgui.MouseButtonLeft) {
 		return
@@ -284,9 +331,11 @@ func (isl *floatingIsland) handleInput(l islandLayout, shell *Shell) {
 	}
 
 	for _, b := range l.buttons {
-		dx := m.X - b.pos.X
-		dy := m.Y - b.pos.Y
-		if float32(math.Sqrt(float64(dx*dx+dy*dy))) >= b.radius {
+		if !b.enabled {
+			continue
+		}
+		hh := b.hit / 2
+		if m.X < b.pos.X-hh || m.X > b.pos.X+hh || m.Y < b.pos.Y-hh || m.Y > b.pos.Y+hh {
 			continue
 		}
 		isl.IsExpanded = false
@@ -329,18 +378,24 @@ func (isl *floatingIsland) updateAnimation() {
 	}
 }
 
-// drawIslandIcon 苹果 SF Symbols 风格图标：单色细线条（白色，关闭为系统红），
-// 笔画粗细随按钮半径等比；按钮底为统一的半透明灰圆，不用彩色填充底。
-func drawIslandIcon(drawList *imgui.DrawList, pos imgui.Vec2, radius float32, icon int, state ScriptState) {
-	thickness := radius * 0.07
-	if thickness < 1.5 {
-		thickness = 1.5
+// drawIslandIcon 积木风格图标：纸面方块上的墨色粗线图标；停止（运行中时）
+// 用 candy-red 强调破坏性，关闭按钮为红底纸色图标。笔画粗细随按钮尺寸等比。
+func drawIslandIcon(drawList *imgui.DrawList, pos imgui.Vec2, half float32, icon int, state ScriptState, enabled bool) {
+	thickness := half * 0.14
+	if thickness < 2 {
+		thickness = 2
 	}
-	size := radius * 0.42 // 图标半尺寸
+	size := half * 0.42 // 图标半尺寸
 
-	glyph := islandGlyph
-	if icon == islandIconClose {
-		glyph = islandDanger
+	glyph := candyInk
+	switch {
+	case icon == islandIconClose:
+		glyph = candyPaper // 红底上的纸色 ×
+	case icon == islandIconStartStop && state != StateIdle:
+		glyph = candyRed // 停止图标红色强调
+	}
+	if !enabled {
+		glyph.W *= 0.35
 	}
 	col := imgui.ColorU32Vec4(glyph)
 
@@ -350,24 +405,24 @@ func drawIslandIcon(drawList *imgui.DrawList, pos imgui.Vec2, radius float32, ic
 			drawPlayIcon(drawList, pos, size, col)
 		} else {
 			// stop：圆角方块
-			half := size * 0.85
+			h := size * 0.85
 			drawList.AddRectFilledV(
-				imgui.Vec2{X: pos.X - half, Y: pos.Y - half},
-				imgui.Vec2{X: pos.X + half, Y: pos.Y + half},
-				col, half*0.55, imgui.DrawFlagsRoundCornersAll,
+				imgui.Vec2{X: pos.X - h, Y: pos.Y - h},
+				imgui.Vec2{X: pos.X + h, Y: pos.Y + h},
+				col, h*0.55, imgui.DrawFlagsRoundCornersAll,
 			)
 		}
 
 	case islandIconPauseResume:
 		if state == StatePaused {
-			// 苹果媒体控制惯例：暂停态显示播放键（点击即继续）
+			// 媒体控制惯例：暂停态显示播放键（点击即继续）
 			drawPlayIcon(drawList, pos, size, col)
 		} else {
 			drawPauseIcon(drawList, pos, size, col)
 		}
 
 	case islandIconSettings:
-		// gearshape 近似：外环 + 8 齿 + 中心孔，全描边
+		// 齿轮近似：外环 + 8 齿 + 中心孔，全描边
 		ring := size * 0.95
 		drawList.AddCircleV(pos, ring, col, 0, thickness)
 		for i := 0; i < 8; i++ {
@@ -383,7 +438,7 @@ func drawIslandIcon(drawList *imgui.DrawList, pos imgui.Vec2, radius float32, ic
 		drawList.AddCircleV(pos, ring*0.45, col, 0, thickness)
 
 	case islandIconClose:
-		// xmark：两条细斜线
+		// xmark：两条粗斜线
 		off := size * 0.7
 		drawList.AddLineV(
 			imgui.Vec2{X: pos.X - off, Y: pos.Y - off},
@@ -405,7 +460,7 @@ func drawPlayIcon(drawList *imgui.DrawList, pos imgui.Vec2, size float32, color 
 	drawList.AddTriangleFilled(p1, p2, p3, color)
 }
 
-// drawPauseIcon 两根圆角竖条（iOS 风格）。
+// drawPauseIcon 两根圆角竖条。
 func drawPauseIcon(drawList *imgui.DrawList, pos imgui.Vec2, size float32, color uint32) {
 	barW := size * 0.42
 	barH := size * 1.7

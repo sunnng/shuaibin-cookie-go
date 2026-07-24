@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>帅宾 Cookie · 糖果积木 UI 交互原型</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   糖果积木 Candy Blocks — 设计令牌（与 design-system.md 对应）
+   基准分辨率 1600×900，舞台按比例缩放适配浏览器
+   ============================================================ */
+:root {
+  --ink: #211D19;
+  --paper: #FFF6E5;
+  --raised: #FFFFFF;
+  --yellow: #FFC93C;
+  --yellow-soft: #FFE9B8;
+  --green: #06D6A0;
+  --blue: #4D96FF;
+  --orange: #FF9F1C;
+  --red: #EF476F;
+  --purple: #9B5DE5;
+  --island: #17130C;
+  --sec: #8A8071;
+  --run-text: #0E9F6E;
+  --pause-text: #C2410C;
+  --idle-text: #2563EB;
+  --font: "Oxanium", "Alimama ShuHeiTi", "Alimama ShuHeiTi Bold", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --b3: 3px solid var(--ink);
+  --b2: 2px solid var(--ink);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body {
+  background: #14100C;
+  font-family: var(--font);
+  overflow: hidden;
+  user-select: none;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 10px;
+}
+#hint {
+  color: #B8AC9B; font-size: 13px; letter-spacing: .5px;
+  display: flex; gap: 18px; align-items: center;
+}
+#hint b { color: var(--yellow); font-weight: 600; }
+#hint .dot { width: 6px; height: 6px; border-radius: 50%; background: #4a4239; }
+
+/* ---------- 1600×900 舞台 ---------- */
+#stage {
+  position: relative;
+  width: 1600px; height: 900px;
+  flex: none;
+  transform-origin: center center;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0,0,0,.6);
+}
+
+/* ---------- 假游戏画面 ---------- */
+#game { position: absolute; inset: 0; }
+#game svg { display: block; width: 100%; height: 100%; }
+
+/* ============================================================
+   灵动岛
+   ============================================================ */
+#island {
+  position: absolute;
+  top: 14px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--island);
+  border: 3px solid var(--blue);
+  cursor: pointer;
+  transition:
+    width .3s cubic-bezier(.32,.72,0,1),
+    height .3s cubic-bezier(.32,.72,0,1),
+    border-radius .3s cubic-bezier(.32,.72,0,1),
+    border-color .25s ease;
+  width: 320px; height: 64px;
+  border-radius: 999px;
+  overflow: hidden;
+  z-index: 30;
+}
+#island.running { border-color: var(--green); }
+#island.paused  { border-color: var(--orange); }
+#island.expanded { width: 600px; height: 224px; border-radius: 28px; cursor: default; }
+
+/* 收起态 */
+#pill {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px;
+  transition: opacity .15s ease;
+}
+#island.expanded #pill { opacity: 0; pointer-events: none; }
+.state-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--blue); flex: none;
+}
+.running .state-dot { background: var(--green); animation: pulse 1.6s ease-in-out infinite; }
+.paused  .state-dot { background: var(--orange); }
+@keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(6,214,160,.5);} 50% { box-shadow: 0 0 0 8px rgba(6,214,160,0);} }
+#pillLabel { color: #EDE9E2; font-size: 17px; font-weight: 600; letter-spacing: .5px; white-space: nowrap; }
+
+/* 展开态 */
+#card {
+  position: absolute; inset: 0;
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s ease .1s;
+  display: flex; flex-direction: column;
+  align-items: center;
+  padding-top: 34px;
+}
+#island.expanded #card { opacity: 1; pointer-events: auto; }
+#cardStatus { display: flex; align-items: center; gap: 8px; color: #EDE9E2; font-size: 17px; font-weight: 600; }
+#cardStatus .state-dot { width: 12px; height: 12px; }
+#cardBtns { display: flex; gap: 36px; margin-top: 28px; }
+.isl-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; }
+.isl-btn .box {
+  width: 64px; height: 64px;
+  background: var(--paper);
+  border: 3px solid var(--paper);
+  border-radius: 18px;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .1s ease, background .15s ease;
+}
+.isl-btn:active .box { transform: scale(.9); }
+.isl-btn span { color: #B9B2A6; font-size: 13px; }
+.isl-btn.disabled { opacity: .35; pointer-events: none; }
+.isl-btn.danger .box { background: var(--red); border-color: var(--red); }
+.isl-btn svg { display: block; }
+
+/* ============================================================
+   配置面板
+   ============================================================ */
+#panel {
+  position: absolute;
+  left: 50%; top: 142px;
+  transform: translateX(-50%);
+  width: 1040px; height: 640px;
+  background: var(--paper);
+  border: var(--b3);
+  border-radius: 18px;
+  box-shadow: 8px 8px 0 rgba(23,19,12,.35);
+  z-index: 40;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  transition: opacity .2s ease, transform .2s ease;
+}
+#panel.hidden { opacity: 0; pointer-events: none; transform: translateX(-50%) scale(.98); }
+#panel.minimized { height: 70px; }
+
+/* 标题栏 */
+#titlebar {
+  height: 70px; flex: none;
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 16px;
+  border-bottom: var(--b3);
+}
+#titleBlock {
+  background: var(--yellow);
+  border: var(--b3);
+  border-radius: 12px;
+  box-shadow: 4px 4px 0 var(--ink);
+  padding: 8px 16px;
+  font-size: 24px; font-weight: 700;
+  letter-spacing: 1px;
+}
+#titleState {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 8px;
+  background: var(--raised);
+  border: var(--b2);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 15px; font-weight: 600;
+}
+#titleState .state-dot { width: 10px; height: 10px; }
+.win-btn {
+  width: 48px; height: 42px;
+  background: var(--raised);
+  border: var(--b3);
+  border-radius: 10px;
+  box-shadow: 3px 3px 0 var(--ink);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 700;
+  transition: transform .1s ease, box-shadow .1s ease;
+}
+.win-btn:active { transform: translate(3px,3px); box-shadow: 0 0 0 var(--ink); }
+#btnClose { background: var(--red); color: var(--raised); }
+
+/* 脚本条 */
+#scriptbar {
+  flex: none; height: 76px;
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 16px;
+  border-bottom: var(--b3);
+  background: #FBEFD8;
+}
+#barStatus { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+#barStateText { font-weight: 700; }
+#barStateText.idle { color: var(--idle-text); }
+#barStateText.running { color: var(--run-text); }
+#barStateText.paused { color: var(--pause-text); }
+#barEnabled { color: var(--sec); }
+#autoBadge {
+  display: none;
+  background: var(--orange); color: var(--ink);
+  border: var(--b2); border-radius: 999px;
+  font-size: 13px; font-weight: 600;
+  padding: 3px 10px;
+}
+#barBtns { margin-left: auto; display: flex; gap: 12px; }
+.btn {
+  border: var(--b3);
+  border-radius: 12px;
+  box-shadow: 4px 4px 0 var(--ink);
+  font-family: var(--font);
+  font-size: 17px; font-weight: 700;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: transform .1s ease, box-shadow .1s ease, background .15s ease;
+  color: var(--ink);
+  background: var(--raised);
+}
+.btn:active { transform: translate(3px,3px); box-shadow: 1px 1px 0 var(--ink); }
+.btn.secondary { width: 120px; height: 48px; }
+.btn.primary { width: 140px; height: 48px; }
+.btn.primary.go { background: var(--green); }
+.btn.primary.stop { background: var(--red); color: var(--raised); }
+.btn.disabled, .btn:disabled { opacity: .4; box-shadow: none; cursor: not-allowed; pointer-events: none; }
+
+/* 面板主体 */
+#panelBody { flex: 1; display: flex; min-height: 0; }
+#panel.minimized #scriptbar, #panel.minimized #panelBody { display: none; }
+
+/* 导航轨 */
+#rail {
+  width: 136px; flex: none;
+  border-right: var(--b3);
+  padding: 16px 12px;
+  display: flex; flex-direction: column; gap: 12px;
+  background: #F3E7CE;
+}
+.rail-item {
+  height: 48px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 3px solid transparent;
+  font-size: 17px; font-weight: 600;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.rail-item.active {
+  background: var(--yellow);
+  border: var(--b3);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.rail-item:not(.active):hover { background: rgba(255,255,255,.5); }
+
+/* 内容区 */
+#content { flex: 1; display: flex; min-width: 0; }
+
+/* --- 任务列表页 --- */
+#pageTasks { flex: 1; display: flex; min-width: 0; }
+#listCol {
+  width: 300px; flex: none;
+  border-right: var(--b3);
+  display: flex; flex-direction: column;
+  padding: 14px 12px;
+  gap: 10px;
+}
+#chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  height: 36px; padding: 0 14px;
+  border: var(--b2); border-radius: 999px;
+  background: var(--raised);
+  font-size: 14px; font-weight: 600;
+  display: flex; align-items: center;
+  cursor: pointer;
+  transition: all .12s ease;
+}
+.chip.active { background: var(--ink); color: var(--paper); box-shadow: 3px 3px 0 rgba(23,19,12,.3); }
+#taskCards { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; padding: 2px; }
+.task-card {
+  position: relative;
+  background: var(--raised);
+  border: var(--b3);
+  border-radius: 12px;
+  padding: 12px 12px 12px 18px;
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.task-card.selected { box-shadow: 4px 4px 0 var(--ink); border-color: var(--ink); background: #FFFDF6; }
+.task-card.selected::before { background: var(--yellow); }
+.task-card::before {
+  content: ""; position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 6px;
+  border-radius: 12px 0 0 12px;
+  background: var(--sec);
+}
+.task-card[data-cat="daily"]::before { background: var(--yellow); }
+.task-card[data-cat="event"]::before { background: var(--purple); }
+.task-card[data-cat="maint"]::before { background: var(--blue); }
+.task-card .tc-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.task-card .tc-title { font-size: 17px; font-weight: 700; }
+.task-card .tc-sum { font-size: 13px; color: var(--sec); margin-top: 5px; }
+
+/* 开关 */
+.switch {
+  width: 56px; height: 32px; flex: none;
+  background: var(--raised);
+  border: var(--b3);
+  border-radius: 999px;
+  position: relative;
+  cursor: pointer;
+  transition: background .15s ease;
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px; left: 3px;
+  width: 22px; height: 22px;
+  background: var(--ink);
+  border-radius: 50%;
+  transition: left .15s ease;
+}
+.switch.on { background: var(--green); }
+.switch.on::after { left: 25px; }
+
+/* 详情 */
+#detail { flex: 1; padding: 18px 22px; overflow-y: auto; }
+#detailHead { display: flex; align-items: center; gap: 10px; padding-bottom: 14px; border-bottom: var(--b2); }
+#detailTitle { font-size: 20px; font-weight: 700; }
+.pill {
+  font-size: 13px; font-weight: 600;
+  border: var(--b2); border-radius: 999px;
+  padding: 3px 10px;
+  background: var(--raised);
+}
+.pill.on { background: var(--green); }
+.pill.off { background: #E9E2D4; color: var(--sec); border-color: var(--sec); }
+.form-row {
+  display: flex; align-items: center; gap: 16px;
+  min-height: 56px;
+  border-bottom: 2px dashed #E3D5B8;
+}
+.form-row .fl { width: 150px; flex: none; font-size: 15px; font-weight: 600; }
+.form-row .fh { font-size: 12px; color: var(--sec); margin-left: auto; }
+.stepper { display: flex; align-items: center; gap: 8px; }
+.step-btn {
+  width: 44px; height: 44px;
+  background: var(--raised);
+  border: var(--b3); border-radius: 10px;
+  box-shadow: 3px 3px 0 var(--ink);
+  font-size: 22px; font-weight: 700;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .1s ease, box-shadow .1s ease;
+  color: var(--ink);
+}
+.step-btn:active { transform: translate(3px,3px); box-shadow: 0 0 0 var(--ink); }
+.step-val {
+  width: 72px; height: 44px;
+  background: var(--raised);
+  border: var(--b3); border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700;
+}
+.text-input {
+  width: 220px; height: 44px;
+  background: var(--raised);
+  border: var(--b3); border-radius: 10px;
+  padding: 0 12px;
+  font-family: var(--font); font-size: 16px;
+  outline: none;
+  transition: box-shadow .15s ease;
+}
+.text-input:focus { box-shadow: 0 0 0 4px var(--yellow); }
+
+/* --- 系统页 --- */
+#pageSystem { flex: 1; padding: 20px 24px; display: none; flex-direction: column; gap: 18px; overflow-y: auto; }
+.sys-card {
+  background: var(--raised);
+  border: var(--b3); border-radius: 14px;
+  box-shadow: 4px 4px 0 var(--ink);
+  padding: 18px 20px;
+}
+.sys-card h3 { font-size: 18px; margin-bottom: 8px; }
+.sys-card .path { font-size: 13px; color: var(--sec); margin-bottom: 14px; word-break: break-all; }
+.sys-card.danger { border-color: var(--red); background: #FDE8EE; }
+.sys-card .desc { font-size: 13px; color: var(--sec); margin-bottom: 14px; }
+#sysFeedback {
+  display: none;
+  margin-top: 12px;
+  border: var(--b2); border-radius: 10px;
+  padding: 8px 12px; font-size: 14px; font-weight: 600;
+}
+#sysFeedback.ok { display: block; background: #D9F7EE; }
+#sysFeedback.err { display: block; background: #FBD9E2; }
+
+/* Toast */
+#toast {
+  position: absolute;
+  left: 50%; bottom: 40px;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--island);
+  color: var(--paper);
+  border: 3px solid var(--yellow);
+  border-radius: 12px;
+  padding: 12px 22px;
+  font-size: 16px; font-weight: 600;
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease;
+  z-index: 60;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* 原型辅助：舞台左上水印 */
+#wm {
+  position: absolute; left: 14px; bottom: 10px;
+  color: rgba(255,255,255,.55); font-size: 12px;
+  z-index: 5; pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0,0,0,.4);
+}
+</style>
+</head>
+<body>
+
+<div id="hint">
+  <span><b>点击灵动岛</b> 展开快捷操作</span><span class="dot"></span>
+  <span><b>设置</b> 打开配置面板（运行中会自动暂停）</span><span class="dot"></span>
+  <span>开始脚本后面板自动收起，灵动岛实时显示任务状态</span>
+</div>
+
+<div id="stage">
+  <!-- ============ 假游戏画面（风格化王国场景） ============ -->
+  <div id="game">
+    <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#7EC8E3"/><stop offset=".62" stop-color="#BFE3D8"/><stop offset="1" stop-color="#E8D9A8"/>
+        </linearGradient>
+        <linearGradient id="hill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#8FBF6B"/><stop offset="1" stop-color="#6FA04E"/>
+        </linearGradient>
+      </defs>
+      <rect width="1600" height="900" fill="url(#sky)"/>
+      <circle cx="1320" cy="150" r="70" fill="#FFE9A8" opacity=".9"/>
+      <circle cx="1320" cy="150" r="95" fill="#FFE9A8" opacity=".25"/>
+      <g fill="#FFFFFF" opacity=".75">
+        <ellipse cx="300" cy="130" rx="90" ry="26"/><ellipse cx="380" cy="118" rx="70" ry="22"/>
+        <ellipse cx="900" cy="90" rx="80" ry="22"/><ellipse cx="970" cy="80" rx="60" ry="18"/>
+      </g>
+      <ellipse cx="200" cy="760" rx="420" ry="150" fill="url(#hill)"/>
+      <ellipse cx="1400" cy="780" rx="460" ry="170" fill="url(#hill)"/>
+      <rect x="0" y="690" width="1600" height="210" fill="#79AC55"/>
+      <path d="M0 700 Q 400 660 800 700 T 1600 700 V900 H0 Z" fill="#86BB60"/>
+      <!-- 城堡 -->
+      <g>
+        <rect x="640" y="430" width="320" height="280" fill="#D8C9AE"/>
+        <rect x="640" y="430" width="320" height="24" fill="#C4B198"/>
+        <rect x="600" y="360" width="90" height="350" fill="#CBB99C"/>
+        <rect x="910" y="360" width="90" height="350" fill="#CBB99C"/>
+        <polygon points="600,360 645,290 690,360" fill="#B0543F"/>
+        <polygon points="910,360 955,290 1000,360" fill="#B0543F"/>
+        <rect x="748" y="330" width="104" height="110" fill="#CBB99C"/>
+        <polygon points="748,330 800,262 852,330" fill="#B0543F"/>
+        <rect x="792" y="240" width="16" height="40" fill="#8A7B63"/>
+        <polygon points="808,244 858,256 808,272" fill="#E4572E"/>
+        <rect x="772" y="560" width="56" height="150" rx="28" fill="#7A5C3E"/>
+        <g fill="#F5E7C6">
+          <rect x="628" y="420" width="12" height="30"/><rect x="660" y="420" width="12" height="30"/>
+          <rect x="938" y="420" width="12" height="30"/><rect x="970" y="420" width="12" height="30"/>
+          <rect x="700" y="470" width="34" height="44" rx="16"/><rect x="866" y="470" width="34" height="44" rx="16"/>
+        </g>
+      </g>
+      <!-- 树 -->
+      <g>
+        <rect x="380" y="620" width="18" height="70" fill="#7A5C3E"/><circle cx="389" cy="590" r="55" fill="#4E8D3E"/><circle cx="360" cy="610" r="34" fill="#5FA04A"/>
+        <rect x="1180" y="640" width="16" height="60" fill="#7A5C3E"/><circle cx="1188" cy="615" r="46" fill="#4E8D3E"/>
+        <rect x="150" y="660" width="14" height="50" fill="#7A5C3E"/><circle cx="157" cy="640" r="38" fill="#5FA04A"/>
+      </g>
+      <!-- 假游戏 UI 铬件（弱化处理，衬托悬浮层） -->
+      <g opacity=".55">
+        <rect x="24" y="24" width="180" height="64" rx="14" fill="#22303C"/>
+        <circle cx="58" cy="56" r="22" fill="#F0B429"/>
+        <rect x="90" y="40" width="90" height="12" rx="6" fill="#8FB3C9"/>
+        <rect x="90" y="60" width="64" height="10" rx="5" fill="#5C7A8C"/>
+        <rect x="1240" y="24" width="150" height="40" rx="20" fill="#22303C"/>
+        <rect x="1410" y="24" width="150" height="40" rx="20" fill="#22303C"/>
+        <circle cx="1266" cy="44" r="12" fill="#F0B429"/><circle cx="1436" cy="44" r="12" fill="#7EC8E3"/>
+        <rect x="60" y="780" width="110" height="86" rx="18" fill="#22303C"/>
+        <rect x="190" y="780" width="110" height="86" rx="18" fill="#22303C"/>
+        <rect x="320" y="780" width="110" height="86" rx="18" fill="#22303C"/>
+        <rect x="1330" y="770" width="220" height="100" rx="20" fill="#E4572E"/>
+        <rect x="1358" y="800" width="164" height="18" rx="9" fill="#F6F1E3" opacity=".8"/>
+        <rect x="1384" y="828" width="112" height="12" rx="6" fill="#F6F1E3" opacity=".5"/>
+      </g>
+    </svg>
+  </div>
+  <div id="wm">Candy Blocks UI 原型 · 1600×900 基准 · 背景为模拟游戏画面</div>
+
+  <!-- ============ 灵动岛 ============ -->
+  <div id="island">
+    <div id="pill">
+      <div class="state-dot"></div>
+      <div id="pillLabel">帅宾 Cookie · 空闲</div>
+    </div>
+    <div id="card">
+      <div id="cardStatus">
+        <div class="state-dot"></div>
+        <span id="cardLabel">帅宾 Cookie · 空闲</span>
+      </div>
+      <div id="cardBtns">
+        <div class="isl-btn" id="islStart">
+          <div class="box" id="islStartBox"></div><span id="islStartText">开始</span>
+        </div>
+        <div class="isl-btn disabled" id="islPause">
+          <div class="box" id="islPauseBox"></div><span id="islPauseText">暂停</span>
+        </div>
+        <div class="isl-btn" id="islSettings">
+          <div class="box">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#211D19" stroke-width="2">
+              <circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/>
+            </svg>
+          </div><span>设置</span>
+        </div>
+        <div class="isl-btn danger" id="islClose">
+          <div class="box">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFF6E5" stroke-width="2.6" stroke-linecap="round">
+              <path d="M6 6l12 12M18 6L6 18"/>
+            </svg>
+          </div><span>关闭</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 配置面板 ============ -->
+  <div id="panel" class="hidden">
+    <div id="titlebar">
+      <div id="titleBlock">帅宾 Cookie</div>
+      <div id="titleState"><div class="state-dot"></div><span id="titleStateText">空闲</span></div>
+      <div class="win-btn" id="btnMin" title="缩小">—</div>
+      <div class="win-btn" id="btnClose" title="关闭">✕</div>
+    </div>
+    <div id="scriptbar">
+      <div id="barStatus">
+        <div class="state-dot" id="barDot"></div>
+        <span id="barStateText" class="idle">未运行</span>
+        <span id="barEnabled">已启用任务 1/4</span>
+        <span id="autoBadge">已自动暂停</span>
+      </div>
+      <div id="barBtns">
+        <button class="btn secondary disabled" id="btnPause">暂停</button>
+        <button class="btn primary go" id="btnStart">▶ 开始</button>
+      </div>
+    </div>
+    <div id="panelBody">
+      <div id="rail">
+        <div class="rail-item active" data-nav="tasks">▦ 任务</div>
+        <div class="rail-item" data-nav="system">⚙ 系统</div>
+      </div>
+      <div id="content">
+        <div id="pageTasks">
+          <div id="listCol">
+            <div id="chips"></div>
+            <div id="taskCards"></div>
+          </div>
+          <div id="detail"></div>
+        </div>
+        <div id="pageSystem">
+          <div class="sys-card">
+            <h3>配置持久化</h3>
+            <div class="path">配置文件&nbsp;&nbsp;/sdcard/shuaibin-cookie/ui.json</div>
+            <button class="btn secondary" id="btnSave" style="width:150px">保存配置</button>
+            <div id="sysFeedback"></div>
+          </div>
+          <div class="sys-card danger">
+            <h3>危险区</h3>
+            <div class="desc">清除缓存将停止脚本、删除设备上的配置与业务数据，并恢复为默认配置。此操作不可撤销。</div>
+            <button class="btn primary stop" id="btnClear" style="width:170px">清除缓存</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<script>
+/* ============================================================
+   状态（对应 ui.Shell + ui.ScriptController + ui.Store 行为）
+   ============================================================ */
+var CATS = { all: "全部", daily: "日常", event: "活动", maint: "维护" };
+var tasks = [
+  { id: "arena", title: "王国竞技场", cat: "daily",
+    fields: [
+      { key: "enabled", label: "启用", type: "bool", value: true },
+      { key: "maxBattles", label: "每日战斗上限", type: "number", value: 10, min: 0, max: 999, hint: "0 = 不限" },
+      { key: "autoBuyCount", label: "自动购买次数", type: "number", value: 0, min: 0, max: 999 },
+      { key: "trophyDiff", label: "奖杯差阈值", type: "number", value: 0, min: 0, max: 999 }
+    ],
+    summary: function (f) { return "上限 " + (f.maxBattles > 0 ? f.maxBattles : "不限") + " · 购买 " + f.autoBuyCount + " · 奖杯差 " + f.trophyDiff; } },
+  { id: "dungeon", title: "日常副本", cat: "daily",
+    fields: [
+      { key: "enabled", label: "启用", type: "bool", value: false },
+      { key: "dailyTimes", label: "每日挑战次数", type: "number", value: 3, min: 0, max: 20 },
+      { key: "sweep", label: "优先扫荡", type: "bool", value: true }
+    ],
+    summary: function (f) { return "每日 " + f.dailyTimes + " 次 · " + (f.sweep ? "扫荡优先" : "手动战斗"); } },
+  { id: "worldboss", title: "世界 BOSS", cat: "event",
+    fields: [
+      { key: "enabled", label: "启用", type: "bool", value: false },
+      { key: "challengeTimes", label: "挑战次数", type: "number", value: 5, min: 0, max: 99 },
+      { key: "minPower", label: "最低战力(万)", type: "number", value: 30, min: 0, max: 999 }
+    ],
+    summary: function (f) { return "挑战 " + f.challengeTimes + " 次 · 战力 ≥ " + f.minPower + " 万"; } },
+  { id: "ranch", title: "牧场采收", cat: "maint",
+    fields: [
+      { key: "enabled", label: "启用", type: "bool", value: false },
+      { key: "interval", label: "采收间隔(分钟)", type: "number", value: 30, min: 5, max: 240 },
+      { key: "helpFriend", label: "好友互助", type: "bool", value: true }
+    ],
+    summary: function (f) { return "每 " + f.interval + " 分钟 · " + (f.helpFriend ? "含好友互助" : "仅自己"); } }
+];
+
+var S = {
+  script: "idle",        // idle | running | paused （对应 ScriptState）
+  autoPaused: false,     // 自动暂停标记（Shell.autoPaused）
+  panelOpen: false,
+  minimized: false,
+  nav: "tasks",
+  cat: "all",
+  selected: "arena",
+  islandOpen: false,
+  battles: 12,
+  winRate: 67
+};
+
+/* ---------- 工具 ---------- */
+function $(id) { return document.getElementById(id); }
+function fields(t) { var o = {}; t.fields.forEach(function (f) { o[f.key] = f.value; }); return o; }
+function findTask(id) { return tasks.filter(function (t) { return t.id === id; })[0]; }
+var STATE_LABEL = { idle: "空闲", running: "运行中", paused: "已暂停" };
+var STATE_COLOR = { idle: "var(--blue)", running: "var(--green)", paused: "var(--orange)" };
+
+/* ---------- 舞台缩放 ---------- */
+function fit() {
+  var s = Math.min((innerWidth - 24) / 1600, (innerHeight - 70) / 900);
+  $("stage").style.transform = "scale(" + s + ")";
+}
+addEventListener("resize", fit); fit();
+
+/* ---------- Toast ---------- */
+var toastTimer = null;
+function toast(msg) {
+  var el = $("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { el.classList.remove("show"); }, 2200);
+}
+
+/* ---------- 图标 ---------- */
+var ICON_PLAY = '<svg width="28" height="28" viewBox="0 0 24 24" fill="#211D19"><path d="M7 4.5v15l13-7.5z"/></svg>';
+var ICON_STOP = '<svg width="24" height="24" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="3" fill="#211D19"/></svg>';
+var ICON_PAUSE = '<svg width="26" height="26" viewBox="0 0 24 24" fill="#211D19"><rect x="6" y="4" width="4" height="16" rx="2"/><rect x="14" y="4" width="4" height="16" rx="2"/></svg>';
+
+/* ============================================================
+   灵动岛
+   ============================================================ */
+var islandTimer = null;
+function islandLabel() {
+  if (S.script === "running") return "已战斗 " + S.battles + " 场 · 胜率 " + S.winRate + "%";
+  return "帅宾 Cookie · " + STATE_LABEL[S.script];
+}
+function renderIsland() {
+  var isl = $("island");
+  isl.className = S.script + (S.islandOpen ? " expanded" : "");
+  $("pillLabel").textContent = islandLabel();
+  $("cardLabel").textContent = islandLabel();
+  // 开始/停止
+  $("islStartBox").innerHTML = S.script === "idle" ? ICON_PLAY : ICON_STOP;
+  $("islStartText").textContent = S.script === "idle" ? "开始" : "停止";
+  // 暂停/继续（空闲禁用）
+  var pause = $("islPause");
+  pause.classList.toggle("disabled", S.script === "idle");
+  $("islPauseBox").innerHTML = S.script === "paused" ? ICON_PLAY : ICON_PAUSE;
+  $("islPauseText").textContent = S.script === "paused" ? "继续" : "暂停";
+}
+function islandCollapse() { S.islandOpen = false; renderIsland(); }
+function armIslandTimer() {
+  clearTimeout(islandTimer);
+  islandTimer = setTimeout(islandCollapse, 6000); // 6s 自动收起（遮挡策略）
+}
+$("island").addEventListener("click", function (e) {
+  if (!S.islandOpen) { S.islandOpen = true; renderIsland(); armIslandTimer(); }
+});
+$("islStart").addEventListener("click", function (e) { e.stopPropagation(); startStop(); islandCollapse(); });
+$("islPause").addEventListener("click", function (e) { e.stopPropagation(); pauseResume(); islandCollapse(); });
+$("islSettings").addEventListener("click", function (e) { e.stopPropagation(); islandCollapse(); openPanel(); });
+$("islClose").addEventListener("click", function (e) {
+  e.stopPropagation(); islandCollapse();
+  if (S.script !== "idle") { S.script = "idle"; S.autoPaused = false; }
+  renderAll();
+  toast("脚本已退出（原型中界面保留供继续体验）");
+});
+document.addEventListener("click", function (e) {
+  if (S.islandOpen && !$("island").contains(e.target)) islandCollapse();
+});
+
+/* ============================================================
+   脚本生命周期（对应 Shell.StartStop / PauseResume / OpenPanel / ClosePanel）
+   ============================================================ */
+function startStop() {
+  if (S.script === "idle") {
+    S.script = "running";
+    S.autoPaused = false;
+    toast("脚本已启动");
+    if (S.panelOpen) closePanel(true); // 从面板启动 → 自动关闭面板（renderScriptBar 现状）
+  } else {
+    S.script = "idle";
+    S.autoPaused = false;
+    toast("脚本已停止");
+  }
+  renderAll();
+}
+function pauseResume() {
+  if (S.script === "running") { S.script = "paused"; S.autoPaused = false; }
+  else if (S.script === "paused") { S.script = "running"; S.autoPaused = false; }
+  renderAll();
+}
+function openPanel() {
+  S.panelOpen = true; S.minimized = false;
+  if (S.script === "running") {           // 遮挡策略：运行中打开面板 → 自动暂停
+    S.script = "paused"; S.autoPaused = true;
+  }
+  renderAll();
+}
+function closePanel(silent) {
+  S.panelOpen = false;
+  if (S.autoPaused) {                      // 关闭面板 → 自动恢复
+    S.autoPaused = false; S.script = "running";
+    if (!silent) toast("已自动恢复运行");
+  }
+  renderAll();
+}
+$("btnStart").addEventListener("click", startStop);
+$("btnPause").addEventListener("click", pauseResume);
+$("btnClose").addEventListener("click", function () { closePanel(false); });
+$("btnMin").addEventListener("click", function () { S.minimized = !S.minimized; renderPanel(); });
+
+/* ---------- 运行模拟：任务状态递增 + 上限自停 ---------- */
+setInterval(function () {
+  if (S.script !== "running") return;
+  S.battles++;
+  S.winRate = Math.max(50, Math.min(85, S.winRate + (Math.random() > .5 ? 1 : -1)));
+  var arena = fields(findTask("arena"));
+  if (arena.maxBattles > 0 && S.battles >= arena.maxBattles) {
+    S.script = "idle";
+    toast("已达每日战斗上限 " + arena.maxBattles + " 场，脚本自动停止");
+  }
+  renderIsland(); renderScriptbar(); renderTitleState();
+}, 4000);
+
+/* ============================================================
+   面板渲染
+   ============================================================ */
+function renderPanel() {
+  var p = $("panel");
+  p.classList.toggle("hidden", !S.panelOpen);
+  p.classList.toggle("minimized", S.minimized);
+}
+function renderTitleState() {
+  $("titleStateText").textContent = STATE_LABEL[S.script];
+  document.querySelector("#titleState .state-dot").style.background = STATE_COLOR[S.script];
+}
+function renderScriptbar() {
+  var t = $("barStateText");
+  t.className = S.script === "idle" ? "idle" : S.script;
+  t.textContent = S.script === "idle" ? "未运行" : STATE_LABEL[S.script];
+  $("barDot").style.background = STATE_COLOR[S.script];
+  $("barDot").style.animation = S.script === "running" ? "pulse 1.6s ease-in-out infinite" : "none";
+  var en = tasks.filter(function (x) { return fields(x).enabled; }).length;
+  $("barEnabled").textContent = "已启用任务 " + en + "/" + tasks.length;
+  $("autoBadge").style.display = S.autoPaused ? "block" : "none";
+  // 暂停钮：空闲禁用
+  var bp = $("btnPause");
+  bp.classList.toggle("disabled", S.script === "idle");
+  bp.textContent = S.script === "paused" ? "继续" : "暂停";
+  // 主按钮
+  var bs = $("btnStart");
+  if (S.script === "idle") { bs.className = "btn primary go"; bs.textContent = "▶ 开始"; }
+  else { bs.className = "btn primary stop"; bs.textContent = "■ 停止"; }
+}
+
+/* ---------- 导航 ---------- */
+document.querySelectorAll(".rail-item").forEach(function (el) {
+  el.addEventListener("click", function () {
+    S.nav = el.dataset.nav;
+    document.querySelectorAll(".rail-item").forEach(function (x) { x.classList.toggle("active", x === el); });
+    $("pageTasks").style.display = S.nav === "tasks" ? "flex" : "none";
+    $("pageSystem").style.display = S.nav === "system" ? "flex" : "none";
+  });
+});
+
+/* ---------- 任务列表页 ---------- */
+function renderChips() {
+  var cats = ["all"];
+  tasks.forEach(function (t) { if (cats.indexOf(t.cat) < 0) cats.push(t.cat); });
+  $("chips").innerHTML = cats.map(function (c) {
+    return '<div class="chip' + (S.cat === c ? " active" : "") + '" data-cat="' + c + '">' + CATS[c] + "</div>";
+  }).join("");
+  document.querySelectorAll(".chip").forEach(function (el) {
+    el.addEventListener("click", function () { S.cat = el.dataset.cat; renderChips(); renderCards(); });
+  });
+}
+function renderCards() {
+  var list = tasks.filter(function (t) { return S.cat === "all" || t.cat === S.cat; });
+  $("taskCards").innerHTML = list.map(function (t) {
+    var f = fields(t);
+    return '<div class="task-card' + (S.selected === t.id ? " selected" : "") + '" data-id="' + t.id + '" data-cat="' + t.cat + '">' +
+      '<div class="tc-top"><span class="tc-title">' + t.title + "</span>" +
+      '<div class="switch' + (f.enabled ? " on" : "") + '" data-switch="' + t.id + '"></div></div>' +
+      '<div class="tc-sum">' + t.summary(f) + "</div></div>";
+  }).join("") || '<div style="color:var(--sec);font-size:14px;padding:12px">（该分类暂无任务）</div>';
+  document.querySelectorAll(".task-card").forEach(function (el) {
+    el.addEventListener("click", function () { S.selected = el.dataset.id; renderCards(); renderDetail(); });
+  });
+  document.querySelectorAll("[data-switch]").forEach(function (el) {
+    el.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var t = findTask(el.dataset.switch);
+      t.fields[0].value = !t.fields[0].value;
+      renderCards(); renderDetail(); renderScriptbar();
+    });
+  });
+}
+function renderDetail() {
+  var t = findTask(S.selected) || tasks[0];
+  var f = fields(t);
+  var rows = t.fields.map(function (fd) {
+    var ctrl = "";
+    if (fd.type === "bool") {
+      ctrl = '<div class="switch' + (fd.value ? " on" : "") + '" data-field="' + fd.key + '"></div>';
+    } else {
+      ctrl = '<div class="stepper">' +
+        '<button class="step-btn" data-step="-1" data-field="' + fd.key + '">−</button>' +
+        '<div class="step-val" id="val_' + fd.key + '">' + fd.value + "</div>" +
+        '<button class="step-btn" data-step="1" data-field="' + fd.key + '">+</button></div>';
+    }
+    var hint = fd.hint ? '<span class="fh">' + fd.hint + "</span>" : "";
+    return '<div class="form-row"><span class="fl">' + fd.label + "</span>" + ctrl + hint + "</div>";
+  }).join("");
+  $("detail").innerHTML =
+    '<div id="detailHead"><span id="detailTitle">' + t.title + "</span>" +
+    '<span class="pill ' + (f.enabled ? "on" : "off") + '">' + (f.enabled ? "已启用" : "未启用") + "</span>" +
+    '<span class="pill">' + CATS[t.cat] + "</span></div>" + rows;
+  // 绑定
+  $("detail").querySelectorAll(".switch").forEach(function (el) {
+    el.addEventListener("click", function () {
+      var fd = t.fields.filter(function (x) { return x.key === el.dataset.field; })[0];
+      fd.value = !fd.value;
+      renderDetail(); renderCards(); renderScriptbar();
+    });
+  });
+  $("detail").querySelectorAll(".step-btn").forEach(function (el) {
+    el.addEventListener("click", function () {
+      var fd = t.fields.filter(function (x) { return x.key === el.dataset.field; })[0];
+      fd.value = Math.max(fd.min, Math.min(fd.max, fd.value + Number(el.dataset.step)));
+      renderDetail(); renderCards();
+    });
+  });
+}
+
+/* ---------- 系统页 ---------- */
+$("btnSave").addEventListener("click", function () {
+  var fb = $("sysFeedback");
+  fb.className = "ok"; fb.textContent = "配置已保存";
+  toast("配置已保存到 ui.json");
+});
+var clearArmed = null;
+$("btnClear").addEventListener("click", function () {
+  var btn = $("btnClear");
+  if (!clearArmed) {
+    btn.textContent = "确认清除？";
+    clearArmed = setTimeout(function () { btn.textContent = "清除缓存"; clearArmed = null; }, 3000);
+    return;
+  }
+  clearTimeout(clearArmed); clearArmed = null;
+  btn.textContent = "清除缓存";
+  // 恢复默认
+  tasks[0].fields.forEach(function (f) { f.value = f.key === "enabled" ? true : (f.key === "maxBattles" ? 10 : 0); });
+  tasks.slice(1).forEach(function (t) { t.fields[0].value = false; });
+  if (S.script !== "idle") { S.script = "idle"; S.autoPaused = false; }
+  S.battles = 0; S.winRate = 0;
+  var fb = $("sysFeedback");
+  fb.className = "ok"; fb.textContent = "缓存已清除，默认配置已恢复";
+  toast("缓存已清除，默认配置已恢复");
+  renderAll();
+});
+
+/* ---------- 总渲染 ---------- */
+function renderAll() {
+  renderIsland(); renderPanel(); renderTitleState(); renderScriptbar(); renderChips(); renderCards(); renderDetail();
+}
+renderAll();
+</script>
+</body>
+</html>

@@ -21,22 +21,25 @@ func TestHexDefaultsAlphaAndRejectsBadInput(t *testing.T) {
 	}
 }
 
-func TestDefaultThemeIsQQBlue(t *testing.T) {
+func TestDefaultThemeIsCandyBlocks(t *testing.T) {
 	th := DefaultTheme()
-	if th.Accent != Hex("#2f8fd0ff") {
+	if th.Accent != Hex("#FFC93Cff") {
 		t.Fatalf("accent=%+v", th.Accent)
 	}
-	if th.TitleTop != Hex("#5aa9e6ff") || th.TitleBottom != Hex("#2f7fc4ff") {
-		t.Fatal("title gradient colors")
+	if th.WindowBg != Hex("#FFF6E5ff") || th.Border != Hex("#211D19ff") {
+		t.Fatal("paper window bg / ink border")
 	}
-	if th.RailBg != Hex("#cfe4f7ff") {
+	if th.TitleTop != Hex("#FFC93Cff") || th.TitleBottom != Hex("#FFC93Cff") {
+		t.Fatal("title flat candy-yellow (no gradient)")
+	}
+	if th.RailBg != Hex("#F3E7CEff") {
 		t.Fatal("rail bg")
 	}
 	if th.White != (Color{1, 1, 1, 1}) {
 		t.Fatal("white")
 	}
-	if th.Rounding != 4 {
-		t.Fatalf("rounding=%v want 4", th.Rounding)
+	if th.Rounding != 10 {
+		t.Fatalf("rounding=%v want 10", th.Rounding)
 	}
 	// 主题可作零值比较（ShellOptions 缺省判断依赖这一点）
 	if th == (Theme{}) {

@@ -51,31 +51,33 @@ type Theme struct {
 	Rounding                             float32
 }
 
-// DefaultTheme QQ 风浅蓝默认主题（沿用 internal/ui 的 QQ 蓝色值）。
+// DefaultTheme 糖果积木（Candy Blocks）默认主题：纸面底 + 墨色描边 + 糖果黄
+// 主色（docs/ui-redesign/design-system.md §3/§7.1）。Accent 为糖果黄，压在
+// 其上的文字必须用墨色 Text，不能用白字（黄底白字对比度不达标）。
 func DefaultTheme() Theme {
 	return Theme{
-		WindowBg:      Hex("#e9f2fbff"),
-		ChildBg:       Hex("#f7fbffff"),
-		PopupBg:       Hex("#f2f8feff"),
-		Border:        Hex("#9cc3e5ff"),
+		WindowBg:      Hex("#FFF6E5ff"), // paper
+		ChildBg:       Hex("#FFFBF2ff"),
+		PopupBg:       Hex("#FFF3D6ff"),
+		Border:        Hex("#211D19ff"), // ink
 		FrameBg:       Hex("#ffffffff"),
-		FrameHover:    Hex("#e3f0fbff"),
-		FrameActive:   Hex("#cde6faff"),
-		Button:        Hex("#dcebfaff"),
-		ButtonHover:   Hex("#bcdcf7ff"),
-		ButtonActive:  Hex("#8fc3efff"),
-		Header:        Hex("#dcebfaff"),
-		HeaderHover:   Hex("#bcdcf7ff"),
-		HeaderActive:  Hex("#8fc3efff"),
-		Text:          Hex("#1f3a52ff"),
-		TextDisabled:  Hex("#7a8fa3ff"),
-		Accent:        Hex("#2f8fd0ff"),
-		TitleBg:       Hex("#3d8fd1ff"),
-		TitleBgActive: Hex("#3d8fd1ff"),
-		TitleTop:      Hex("#5aa9e6ff"),
-		TitleBottom:   Hex("#2f7fc4ff"),
-		RailBg:        Hex("#cfe4f7ff"),
+		FrameHover:    Hex("#FFE9B8ff"), // 浅黄 hover
+		FrameActive:   Hex("#FFC93Cff"), // candy-yellow
+		Button:        Hex("#ffffffff"),
+		ButtonHover:   Hex("#FFE9B8ff"),
+		ButtonActive:  Hex("#FFC93Cff"),
+		Header:        Hex("#ffffffff"),
+		HeaderHover:   Hex("#FFE9B8ff"),
+		HeaderActive:  Hex("#FFC93Cff"),
+		Text:          Hex("#211D19ff"), // ink
+		TextDisabled:  Hex("#8A8071ff"),
+		Accent:        Hex("#FFC93Cff"), // candy-yellow（配墨色文字）
+		TitleBg:       Hex("#FFC93Cff"), // 平涂，取消渐变
+		TitleBgActive: Hex("#FFC93Cff"),
+		TitleTop:      Hex("#FFC93Cff"),
+		TitleBottom:   Hex("#FFC93Cff"),
+		RailBg:        Hex("#F3E7CEff"),
 		White:         Color{1, 1, 1, 1},
-		Rounding:      4,
+		Rounding:      10,
 	}
 }
