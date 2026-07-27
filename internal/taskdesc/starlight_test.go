@@ -1,4 +1,4 @@
-package main
+package taskdesc
 
 import (
 	"testing"
@@ -9,7 +9,7 @@ import (
 
 func TestStarlightDescriptorSeedApplyRoundTrip(t *testing.T) {
 	cfg := config.DefaultConfig()
-	task := starlightTaskDescriptor(cfg)
+	task := Starlight(cfg)
 
 	s := ui.NewStore()
 	ui.SeedAll(s, []ui.Task{task})
@@ -26,7 +26,7 @@ func TestStarlightDescriptorSeedApplyRoundTrip(t *testing.T) {
 
 func TestStarlightDescriptorSummaryAndCategory(t *testing.T) {
 	cfg := config.DefaultConfig()
-	task := starlightTaskDescriptor(cfg)
+	task := Starlight(cfg)
 	if task.ID != "starlight" || task.Title != "梦幻繁星岛" {
 		t.Fatalf("id/title=%s/%s", task.ID, task.Title)
 	}

@@ -1,4 +1,4 @@
-package main
+package taskdesc
 
 import (
 	"testing"
@@ -9,7 +9,7 @@ import (
 
 func TestSquareDescriptorSeedApplyRoundTrip(t *testing.T) {
 	cfg := config.DefaultConfig()
-	task := squareTaskDescriptor(cfg)
+	task := Square(cfg)
 
 	s := ui.NewStore()
 	ui.SeedAll(s, []ui.Task{task})
@@ -34,7 +34,7 @@ func TestSquareDescriptorSeedApplyRoundTrip(t *testing.T) {
 
 func TestSquareDescriptorSummaryAndCategory(t *testing.T) {
 	cfg := config.DefaultConfig()
-	task := squareTaskDescriptor(cfg)
+	task := Square(cfg)
 	if task.ID != "square" || task.Title != "布谷鸟广场" {
 		t.Fatalf("id/title=%s/%s", task.ID, task.Title)
 	}

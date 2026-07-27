@@ -10,15 +10,16 @@ import (
 	"github.com/Dasongzi1366/AutoGo/imgui"
 )
 
-// floatingIsland 灵动岛样式悬浮窗：深色胶囊，点击展开为圆角卡片，
+// floatingIsland 灵动岛样式悬浮窗：收起态为深色小圆（ink 底 + 中央状态点 +
+// 状态色描边，颜色即运行状态：空闲蓝 / 运行绿 / 暂停橙），点击展开为深色圆角卡片，
 // 提供 开始/停止、暂停/继续、设置、关闭 四个操作（图标 + 文字标签）。
 // 默认顶部居中；收起态按住胶囊可拖动（位移超阈值视为拖动，否则视为点按），
 // 位置持久化到 ui.json（island_pos_x/y），重启后恢复——游戏顶栏有货币等关键数据，
 // 用户可自行把岛挪到不遮挡的位置。展开后再点卡片空白处或卡片外任意处收起，
 // 展开超过 islandAutoCollapse 无操作也会自动收起，避免长时间遮挡游戏画面干扰识别。
 // 业务运行状态由 Shell 提供，岛内部只保留 UI 状态。
-// 视觉为糖果积木语言（docs/ui-redesign/design-system.md §4.1）：深色底 +
-// 3px 状态色描边 + 纸面圆角方块按钮 + 墨色图标；岛不走 Theme，缩放为本岛局部策略。
+// 视觉为糖果积木语言（docs/ui-redesign/design-system.md §4.1）：ink 底 +
+// 状态糖果色点缀 + 纸面圆角方块按钮 + 墨色图标；岛不走 Theme，缩放为本岛局部策略。
 type floatingIsland struct {
 	ScreenWidth  int
 	ScreenHeight int
@@ -46,7 +47,6 @@ const (
 	islandRefWidth   = float32(1600)
 	islandTopMargin  = float32(14)
 	islandPillHeight = float32(64)
-	islandPillMinW   = float32(240)
 	islandCardWidth  = float32(600)
 	islandCardHeight = float32(224)
 	islandCardRadius = float32(28)
@@ -78,7 +78,7 @@ var (
 	islandSubText = imgui.Vec4{X: 0.729, Y: 0.698, Z: 0.651, W: 1.0} // #B9B2A6 按钮文字标签
 )
 
-// islandStateColor 状态点 / 胶囊描边共用：空闲蓝 / 运行绿 / 暂停橙（糖果色）。
+// islandStateColor 状态点 / 描边共用：空闲蓝 / 运行绿 / 暂停橙（糖果色）。
 func islandStateColor(state ScriptState) imgui.Vec4 {
 	return candyStateColor(state)
 }
@@ -95,8 +95,8 @@ func islandStateLabel(state ScriptState) string {
 }
 
 // Draw 每帧调用：推进动画并绘制灵动岛。
-// state 取自 shell.ScriptState()；label 优先使用 shell.StatusText()，为空时回退为
-// shell.Title() + " · " + 状态标签。
+// 收起态为深色小圆 + 中央状态点；label（优先 shell.StatusText()，
+// 为空时回退为状态标签）只在展开卡片顶部的状态行使用。
 // 命中回调直连 Shell：开始/停止 -> shell.StartStop()；暂停/继续 -> shell.PauseResume()；
 // 设置 -> shell.OpenPanel()；关闭 -> shell.Exit()。
 // ctx 仅用于签名一致（由 RunShell 注入），本岛使用自有缩放策略，不经 ctx.S。
@@ -106,7 +106,7 @@ func (isl *floatingIsland) Draw(ctx *Ctx, shell *Shell) {
 	state := shell.ScriptState()
 	label := shell.StatusText()
 	if label == "" {
-		label = shell.Title() + " · " + islandStateLabel(state)
+		label = islandStateLabel(state)
 	}
 
 	if isl.ScreenWidth == 0 {
@@ -161,11 +161,11 @@ type islandLayout struct {
 }
 
 // layout 计算本帧胶囊/卡片矩形（展开动画对宽高与圆角做插值）与按钮排布。
-func (isl *floatingIsland) layout(label string, state ScriptState) islandLayout {
+func (isl *floatingIsland) layout(state ScriptState) islandLayout {
 	s := isl.scale()
 	anim := easeOutCubic(isl.ExpandAnim)
 
-	pillW := isl.pillWidth(label, s)
+	pillW := isl.pillWidth(s)
 	pillH := islandPillHeight * s
 	cardW := islandCardWidth * s
 	cardH := islandCardHeight * s
@@ -217,22 +217,14 @@ func islandButtonLabels(state ScriptState) [4]string {
 	return labels
 }
 
-// pillWidth 胶囊宽度随状态文字自适应（灵动岛风格：内容多宽胶囊就多宽），
-// 下限 islandPillMinW，避免短文案时胶囊过窄。
-func (isl *floatingIsland) pillWidth(label string, s float32) float32 {
-	textW := measureIslandText(label).X
-	dotD := float32(18) * s
-	gap := float32(10) * s
-	pad := float32(24) * s
-	w := pad*2 + dotD + gap + textW
-	if min := islandPillMinW * s; w < min {
-		w = min
-	}
-	return w
+// pillWidth 收起态为深色小圆（直径 = 胶囊高）：不显示文字，仅中央状态点 +
+// 描边颜色表达运行状态（空闲蓝 / 运行绿 / 暂停橙）。
+func (isl *floatingIsland) pillWidth(s float32) float32 {
+	return islandPillHeight * s
 }
 
 func (isl *floatingIsland) drawWindow(shell *Shell, state ScriptState, label string) {
-	l := isl.layout(label, state)
+	l := isl.layout(state)
 
 	imgui.SetNextWindowPosV(imgui.Vec2{X: l.x, Y: l.y}, imgui.CondAlways, imgui.Vec2{})
 	imgui.SetNextWindowSizeV(imgui.Vec2{X: l.w, Y: l.h}, imgui.CondAlways)
@@ -254,15 +246,29 @@ func (isl *floatingIsland) drawWindow(shell *Shell, state ScriptState, label str
 	pMin := imgui.Vec2{X: l.x, Y: l.y}
 	pMax := imgui.Vec2{X: l.x + l.w, Y: l.y + l.h}
 	drawList.AddRectFilledV(pMin, pMax, imgui.ColorU32Vec4(islandBg), l.radius, imgui.DrawFlagsRoundCornersAll)
-	// 3px 状态色描边：与状态点同色，远远一瞥即知状态。
+	// 3px 状态色描边：与中央状态点同色，远远一瞥即知状态。
 	borderW := 3 * l.scale
 	if borderW < 2 {
 		borderW = 2
 	}
-	drawList.AddRectV(pMin, pMax, imgui.ColorU32Vec4(islandStateColor(state)), l.radius, imgui.DrawFlagsRoundCornersAll, borderW)
+	// imgui 描边以路径为中心向两侧各扩 borderW/2，而窗口 DrawList 裁剪矩形
+	// 恰好是窗口边界（padding/border 均为 0），贴边绘制时外半圈描边连同圆角
+	// 外弧、抗锯齿边缘会被裁掉，边框看起来被背景"咬"掉一块。路径内缩
+	// borderW/2 + 1px，让整条描边（含 AA 边缘）落在窗口内。
+	inset := borderW/2 + 1
+	bMin := imgui.Vec2{X: pMin.X + inset, Y: pMin.Y + inset}
+	bMax := imgui.Vec2{X: pMax.X - inset, Y: pMax.Y - inset}
+	bRadius := l.radius - inset
+	if bRadius < 0 {
+		bRadius = 0
+	}
+	drawList.AddRectV(bMin, bMax, imgui.ColorU32Vec4(islandStateColor(state)), bRadius, imgui.DrawFlagsRoundCornersAll, borderW)
 
+	// 收起态：中央状态点（直径约为圆的一半，糖果积木语言里胶囊去文案后的
+	// 极简形态：ink 底 + 状态点 + 状态色描边）；仅展开态绘制卡片内容。
 	if l.anim < 0.85 {
-		isl.drawPillContent(drawList, l, state, label)
+		center := imgui.Vec2{X: l.x + l.w/2, Y: l.y + l.h/2}
+		drawList.AddCircleFilled(center, islandPillHeight*l.scale*0.25, imgui.ColorU32Vec4(islandStateColor(state)))
 	} else {
 		isl.drawCardContent(drawList, l, state, label)
 	}
@@ -272,24 +278,6 @@ func (isl *floatingIsland) drawWindow(shell *Shell, state ScriptState, label str
 	imgui.PopStyleVar()
 	imgui.PopStyleVar()
 	imgui.PopStyleColor()
-}
-
-// drawPillContent 收起态：状态点 + 状态文案，整体水平居中。
-func (isl *floatingIsland) drawPillContent(drawList *imgui.DrawList, l islandLayout, state ScriptState, label string) {
-	textSz := measureIslandText(label)
-	dotD := float32(18) * l.scale
-	gap := float32(10) * l.scale
-	groupW := dotD + gap + textSz.X
-
-	cy := l.y + l.h/2
-	dotX := l.x + (l.w-groupW)/2 + dotD/2
-	drawList.AddCircleFilled(imgui.Vec2{X: dotX, Y: cy}, dotD/2, imgui.ColorU32Vec4(islandStateColor(state)))
-	drawIslandText(
-		drawList,
-		imgui.Vec2{X: dotX + dotD/2 + gap, Y: cy - textSz.Y/2},
-		islandText,
-		label,
-	)
 }
 
 // measureIslandText 测量灵动岛文字尺寸：在 measureLabelSize（含 CJK 保底）基础上

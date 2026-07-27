@@ -1,4 +1,4 @@
-package main
+package taskdesc
 
 import "strings"
 

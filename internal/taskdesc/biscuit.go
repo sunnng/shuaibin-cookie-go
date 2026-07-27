@@ -1,4 +1,4 @@
-package main
+package taskdesc
 
 import (
 	"fmt"
@@ -7,10 +7,10 @@ import (
 	"app/ui"
 )
 
-// biscuitTaskDescriptor 洗脆饼词条的面板描述符：启用 + 洗炼上限 + 4 条槽位
+// Biscuit 洗脆饼词条的面板描述符：启用 + 洗炼上限 + 4 条槽位
 // 目标规则 + 1 条总和规则。minPercent/minSum 配置层是 float64，但 ui.Number
 // 只支持 int，面板按整数百分比存取（Lua 默认 5/6/11 皆整数）；小数需求暂未支持。
-func biscuitTaskDescriptor(cfg *config.Config) ui.Task {
+func Biscuit(cfg *config.Config) ui.Task {
 	b := &cfg.Tasks.Biscuit
 	fields := []ui.Field{
 		ui.Bool("biscuit_enabled", "启用",

@@ -1,4 +1,4 @@
-package main
+package taskdesc
 
 import (
 	"fmt"
@@ -7,10 +7,10 @@ import (
 	"app/ui"
 )
 
-// arenaTaskDescriptor 王国竞技场的面板描述符（ADR-0002）：字段键与旧
+// Arena 王国竞技场的面板描述符（ADR-0002）：字段键与旧
 // internal/ui/binding.go 完全一致，设备上已有的 ui.json 无缝兼容。
 // 详情页由框架 Form 按 Fields 自动渲染（无 RenderDetail 逃生门需求）。
-func arenaTaskDescriptor(cfg *config.Config) ui.Task {
+func Arena(cfg *config.Config) ui.Task {
 	a := &cfg.Tasks.Arena
 	return ui.Task{
 		ID:         "arena",

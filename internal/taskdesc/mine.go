@@ -1,4 +1,4 @@
-package main
+package taskdesc
 
 import (
 	"fmt"
@@ -7,9 +7,9 @@ import (
 	"app/ui"
 )
 
-// mineTaskDescriptors 矿山分类下四个任务的面板描述符。任务 ID、Title、
+// Mine 矿山分类下四个任务的面板描述符。任务 ID、Title、
 // Category 与 EnabledKey 与占位版一致，设备上已有的 ui.json 无缝兼容。
-func mineTaskDescriptors(cfg *config.Config) []ui.Task {
+func Mine(cfg *config.Config) []ui.Task {
 	return []ui.Task{
 		oreVeinMiningTaskDescriptor(cfg),
 		mineVentureTaskDescriptor(cfg),

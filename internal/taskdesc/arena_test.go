@@ -1,4 +1,4 @@
-package main
+package taskdesc
 
 import (
 	"testing"
@@ -15,7 +15,7 @@ func TestArenaDescriptorSeedApplyRoundTrip(t *testing.T) {
 	maxB := 8
 	cfg.Tasks.Arena.MaxBattles = &maxB
 
-	task := arenaTaskDescriptor(cfg)
+	task := Arena(cfg)
 	tasks := []ui.Task{task}
 
 	s := ui.NewStore()
@@ -40,7 +40,7 @@ func TestArenaDescriptorSeedApplyRoundTrip(t *testing.T) {
 
 func TestArenaDescriptorSummary(t *testing.T) {
 	cfg := config.DefaultConfig()
-	task := arenaTaskDescriptor(cfg)
+	task := Arena(cfg)
 	s := ui.NewStore()
 	s.SetFloat("arena_max_battles", 10)
 	s.SetFloat("arena_auto_buy_count", 1)

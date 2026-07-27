@@ -25,6 +25,7 @@ import (
 	"app/internal/scheduler"
 	"app/internal/status"
 	"app/internal/store"
+	"app/internal/taskdesc"
 	"app/ui"
 )
 
@@ -48,13 +49,7 @@ func main() {
 	ui.LogErrorf = logger.Errorf
 	uiStore := ui.NewStore()
 	statusReporter := status.New()
-	tasks := append([]ui.Task{arenaTaskDescriptor(cfg)}, mineTaskDescriptors(cfg)...)
-	tasks = append(tasks,
-		squareTaskDescriptor(cfg),
-		starlightTaskDescriptor(cfg),
-		marketTaskDescriptor(cfg),
-		biscuitTaskDescriptor(cfg),
-	)
+	tasks := taskdesc.Tasks(cfg)
 
 	ctrl := ui.NewScriptController(ui.ScriptHooks{
 		OnStart: func() (run func() error, pause, resume, stop func()) {

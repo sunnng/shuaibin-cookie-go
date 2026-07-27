@@ -1,4 +1,4 @@
-package main
+package taskdesc
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 	"app/ui"
 )
 
-// marketTaskDescriptor 海滩交易所的面板描述符。
-func marketTaskDescriptor(cfg *config.Config) ui.Task {
+// Market 海滩交易所的面板描述符。
+func Market(cfg *config.Config) ui.Task {
 	m := &cfg.Tasks.SeasideMarket
 	return ui.Task{
 		ID:         "seaside_market",

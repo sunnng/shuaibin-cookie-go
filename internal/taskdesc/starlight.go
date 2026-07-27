@@ -1,12 +1,12 @@
-package main
+package taskdesc
 
 import (
 	"app/internal/config"
 	"app/ui"
 )
 
-// starlightTaskDescriptor 梦幻繁星岛的面板描述符（仅启用开关）。
-func starlightTaskDescriptor(cfg *config.Config) ui.Task {
+// Starlight 梦幻繁星岛的面板描述符（仅启用开关）。
+func Starlight(cfg *config.Config) ui.Task {
 	st := &cfg.Tasks.Starlight
 	return ui.Task{
 		ID:         "starlight",

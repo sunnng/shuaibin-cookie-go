@@ -1,4 +1,4 @@
-package main
+package taskdesc
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 	"app/ui"
 )
 
-// squareTaskDescriptor 布谷鸟广场的面板描述符。
-func squareTaskDescriptor(cfg *config.Config) ui.Task {
+// Square 布谷鸟广场的面板描述符。
+func Square(cfg *config.Config) ui.Task {
 	q := &cfg.Tasks.Square
 	return ui.Task{
 		ID:         "square",

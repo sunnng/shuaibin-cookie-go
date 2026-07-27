@@ -1,4 +1,4 @@
-package main
+package taskdesc
 
 import (
 	"testing"
@@ -9,7 +9,7 @@ import (
 
 func TestBiscuitDescriptorSeedApplyRoundTrip(t *testing.T) {
 	cfg := config.DefaultConfig()
-	task := biscuitTaskDescriptor(cfg)
+	task := Biscuit(cfg)
 
 	s := ui.NewStore()
 	ui.SeedAll(s, []ui.Task{task})
@@ -56,7 +56,7 @@ func TestBiscuitDescriptorSeedApplyRoundTrip(t *testing.T) {
 
 func TestBiscuitDescriptorSummaryAndCategory(t *testing.T) {
 	cfg := config.DefaultConfig()
-	task := biscuitTaskDescriptor(cfg)
+	task := Biscuit(cfg)
 	if task.ID != "biscuit" || task.Title != "洗脆饼词条" {
 		t.Fatalf("id/title=%s/%s", task.ID, task.Title)
 	}

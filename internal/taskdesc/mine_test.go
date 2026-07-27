@@ -1,4 +1,4 @@
-package main
+package taskdesc
 
 import (
 	"testing"
@@ -9,7 +9,7 @@ import (
 
 func TestMineDescriptorsSeedApplyRoundTrip(t *testing.T) {
 	cfg := config.DefaultConfig()
-	tasks := mineTaskDescriptors(cfg)
+	tasks := Mine(cfg)
 	if len(tasks) != 4 {
 		t.Fatalf("len=%d want 4", len(tasks))
 	}
@@ -71,7 +71,7 @@ func TestMineDescriptorsSeedApplyRoundTrip(t *testing.T) {
 
 func TestMineDescriptorsSummaryAndCategory(t *testing.T) {
 	cfg := config.DefaultConfig()
-	tasks := mineTaskDescriptors(cfg)
+	tasks := Mine(cfg)
 	s := ui.NewStore()
 	ui.SeedAll(s, tasks)
 	wantIDs := []string{"ore_vein_mining", "mine_venture", "mine_battle", "melted_agar_cubes"}
@@ -93,7 +93,7 @@ func TestMineDescriptorsSummaryAndCategory(t *testing.T) {
 	if got := tasks[3].Summary(s); got != "冷却 3600s" {
 		t.Fatalf("jelly summary=%q", got)
 	}
-	cats := ui.Categories(append([]ui.Task{arenaTaskDescriptor(cfg)}, tasks...))
+	cats := ui.Categories(append([]ui.Task{Arena(cfg)}, tasks...))
 	if len(cats) != 2 || cats[0] != "daily" || cats[1] != "矿山" {
 		t.Fatalf("categories=%v", cats)
 	}

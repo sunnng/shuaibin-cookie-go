@@ -1,4 +1,4 @@
-package main
+package taskdesc
 
 import (
 	"testing"
@@ -9,7 +9,7 @@ import (
 
 func TestMarketDescriptorSeedApplyRoundTrip(t *testing.T) {
 	cfg := config.DefaultConfig()
-	task := marketTaskDescriptor(cfg)
+	task := Market(cfg)
 
 	s := ui.NewStore()
 	ui.SeedAll(s, []ui.Task{task})
@@ -39,7 +39,7 @@ func TestMarketDescriptorSeedApplyRoundTrip(t *testing.T) {
 
 func TestMarketDescriptorSummaryAndCategory(t *testing.T) {
 	cfg := config.DefaultConfig()
-	task := marketTaskDescriptor(cfg)
+	task := Market(cfg)
 	if task.ID != "seaside_market" || task.Title != "海滩交易所" {
 		t.Fatalf("id/title=%s/%s", task.ID, task.Title)
 	}
