@@ -26,11 +26,14 @@ func TaskListPage() func(*Ctx) {
 			}
 		}
 
+		// 外层只包边框 + 固定 chips；任务列表单独可滚，避免滚动条盖住右侧 chip。
 		imgui.PushStyleVarFloat(imgui.StyleVarChildBorderSize, 3)
-		imgui.BeginChildStrV("panel_list", imgui.Vec2{X: listW, Y: 0}, imgui.ChildFlagsBorders, imgui.WindowFlagsNone)
+		imgui.BeginChildStrV("panel_list", imgui.Vec2{X: listW, Y: 0}, imgui.ChildFlagsBorders, imgui.WindowFlagsNoScrollbar)
 		renderCatChips(ctx, store, tasks)
 		imgui.Dummy(imgui.Vec2{X: 0, Y: float32(ctx.S(10))})
+		imgui.BeginChildStrV("panel_task_rows", imgui.Vec2{X: 0, Y: 0}, imgui.ChildFlagsNone, imgui.WindowFlagsNone)
 		renderTaskRows(ctx, store, tasks)
+		imgui.EndChild()
 		imgui.EndChild()
 		imgui.PopStyleVar()
 

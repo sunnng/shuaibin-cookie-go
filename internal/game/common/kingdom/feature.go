@@ -42,7 +42,7 @@ func DefaultFeature() *Feature {
 	return &Feature{
 		Home: PageSlot{
 			Identify: screen.Feature{
-				// 多点比色：x,y,color,x,y,color,...（取色工具绝对坐标格式）
+				// DetectsMultiColors：x,y,color,x,y,color,...（取色工具绝对坐标格式）
 				Colors: "1327,825,d5e7e7-101010,266,806,a157e3-101010,99,818,f9ed78-101010,58,325,b1001b-101010,80,554,6c2d28-101010",
 				Sim:    0.9,
 			},
