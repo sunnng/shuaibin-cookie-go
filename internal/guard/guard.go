@@ -27,6 +27,11 @@ func New(detector screen.Detector) *Guard {
 	return &Guard{detector: detector}
 }
 
+// Detector 返回守卫使用的识别器（弹窗 handler 需要轮询特征是否消失时使用）。
+func (g *Guard) Detector() screen.Detector {
+	return g.detector
+}
+
 // Register adds a trap. Traps are kept sorted by descending priority.
 // A trap whose Feature.Colors is empty (not yet color-picked) is skipped with
 // a warning instead of being registered as a silently-dead entry; Sim <= 0
