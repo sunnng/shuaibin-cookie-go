@@ -10,9 +10,11 @@ import (
 	"github.com/Dasongzi1366/AutoGo/imgui"
 )
 
-// floatingIsland 灵动岛样式悬浮窗：顶部居中的深色胶囊，点击展开为圆角卡片，
+// floatingIsland 灵动岛样式悬浮窗：深色胶囊，点击展开为圆角卡片，
 // 提供 开始/停止、暂停/继续、设置、关闭 四个操作（图标 + 文字标签）。
-// 固定在顶部居中，不可拖动（与真实刘海一致）；展开后再点卡片空白处或卡片外任意处收起，
+// 默认顶部居中；收起态按住胶囊可拖动（位移超阈值视为拖动，否则视为点按），
+// 位置持久化到 ui.json（island_pos_x/y），重启后恢复——游戏顶栏有货币等关键数据，
+// 用户可自行把岛挪到不遮挡的位置。展开后再点卡片空白处或卡片外任意处收起，
 // 展开超过 islandAutoCollapse 无操作也会自动收起，避免长时间遮挡游戏画面干扰识别。
 // 业务运行状态由 Shell 提供，岛内部只保留 UI 状态。
 // 视觉为糖果积木语言（docs/ui-redesign/design-system.md §4.1）：深色底 +
@@ -25,6 +27,13 @@ type floatingIsland struct {
 	ExpandAnim float32
 
 	expandedAt time.Time
+
+	// 拖动：customPos 为 false 时默认顶部居中；拖动后置位并持久化。
+	customPos          bool
+	posX, posY         float32
+	dragging           bool // 按下命中胶囊后的跟踪中（事后区分点按/拖动）
+	dragMoved          bool // 本次跟踪已越过拖动阈值
+	dragOffX, dragOffY float32
 }
 
 // newFloatingIsland 创建灵动岛：初始为收起的胶囊。
@@ -46,6 +55,10 @@ const (
 	islandBtnSpacing = float32(100) // 按钮中心距（64 方块 + 36 间隙）
 	islandBtnRadius  = float32(18)  // 方块圆角
 )
+
+// islandSizeFactor 整体缩小系数（用户反馈默认尺寸遮挡游戏顶栏过多）：
+// 几何经 scale() 乘它，字号经 drawIslandText/measureIslandText 乘它，两边同系数保持比例。
+const islandSizeFactor = float32(0.75)
 
 // islandAutoCollapse 展开卡片的无操作自动收起时长。
 const islandAutoCollapse = 6 * time.Second
@@ -103,6 +116,12 @@ func (isl *floatingIsland) Draw(ctx *Ctx, shell *Shell) {
 		}
 		isl.ScreenWidth = w
 		isl.ScreenHeight = h
+		// 恢复上次拖动持久化的位置（RunShell 首帧 LoadConfig 先于首次 Draw）。
+		if st := shell.Store(); st != nil && st.HasKey(islandPosXKey) && st.HasKey(islandPosYKey) {
+			isl.posX = float32(st.GetFloat(islandPosXKey))
+			isl.posY = float32(st.GetFloat(islandPosYKey))
+			isl.customPos = true
+		}
 	}
 
 	// 展开超时自动收起：卡片遮挡面积较大，长时间盖在游戏上会干扰截图识别。
@@ -122,7 +141,7 @@ func (isl *floatingIsland) scale() float32 {
 	if s > 1.6 {
 		s = 1.6
 	}
-	return s
+	return s * islandSizeFactor
 }
 
 type islandButton struct {
@@ -158,11 +177,18 @@ func (isl *floatingIsland) layout(label string, state ScriptState) islandLayout 
 		scale:  s,
 		anim:   anim,
 	}
-	l.x = (float32(isl.ScreenWidth) - l.w) / 2
-	l.y = islandTopMargin * s
+	// 拖动过的自定义位置（夹取到屏幕内，展开卡片同样整体保持可见）；
+	// 否则默认顶部居中。
+	if isl.customPos {
+		l.x, l.y = clampIslandPos(isl.posX, isl.posY, l.w, l.h,
+			float32(isl.ScreenWidth), float32(isl.ScreenHeight))
+	} else {
+		l.x = (float32(isl.ScreenWidth) - l.w) / 2
+		l.y = islandTopMargin * s
+	}
 
 	// 按钮方块居中排布，底部预留文字标签行。
-	labelH := measureLabelSize("设置").Y
+	labelH := measureIslandText("设置").Y
 	boxCY := l.y + cardH - 20*s - labelH - 8*s - islandBtnSize*s/2
 	centerX := l.x + l.w/2
 	labels := islandButtonLabels(state)
@@ -194,7 +220,7 @@ func islandButtonLabels(state ScriptState) [4]string {
 // pillWidth 胶囊宽度随状态文字自适应（灵动岛风格：内容多宽胶囊就多宽），
 // 下限 islandPillMinW，避免短文案时胶囊过窄。
 func (isl *floatingIsland) pillWidth(label string, s float32) float32 {
-	textW := measureLabelSize(label).X
+	textW := measureIslandText(label).X
 	dotD := float32(18) * s
 	gap := float32(10) * s
 	pad := float32(24) * s
@@ -250,7 +276,7 @@ func (isl *floatingIsland) drawWindow(shell *Shell, state ScriptState, label str
 
 // drawPillContent 收起态：状态点 + 状态文案，整体水平居中。
 func (isl *floatingIsland) drawPillContent(drawList *imgui.DrawList, l islandLayout, state ScriptState, label string) {
-	textSz := measureLabelSize(label)
+	textSz := measureIslandText(label)
 	dotD := float32(18) * l.scale
 	gap := float32(10) * l.scale
 	groupW := dotD + gap + textSz.X
@@ -258,16 +284,34 @@ func (isl *floatingIsland) drawPillContent(drawList *imgui.DrawList, l islandLay
 	cy := l.y + l.h/2
 	dotX := l.x + (l.w-groupW)/2 + dotD/2
 	drawList.AddCircleFilled(imgui.Vec2{X: dotX, Y: cy}, dotD/2, imgui.ColorU32Vec4(islandStateColor(state)))
-	drawList.AddTextVec2V(
+	drawIslandText(
+		drawList,
 		imgui.Vec2{X: dotX + dotD/2 + gap, Y: cy - textSz.Y/2},
-		imgui.ColorU32Vec4(islandText),
+		islandText,
 		label,
+	)
+}
+
+// measureIslandText 测量灵动岛文字尺寸：在 measureLabelSize（含 CJK 保底）基础上
+// 乘 islandSizeFactor，与 drawIslandText 的缩放字号一致。
+func measureIslandText(label string) imgui.Vec2 {
+	sz := measureLabelSize(label)
+	sz.X *= islandSizeFactor
+	sz.Y *= islandSizeFactor
+	return sz
+}
+
+// drawIslandText 按 islandSizeFactor 缩小字号绘制灵动岛文字（几何同系数缩小，保持比例）。
+func drawIslandText(drawList *imgui.DrawList, pos imgui.Vec2, col imgui.Vec4, text string) {
+	drawList.AddTextFontPtr(
+		imgui.CurrentFont(), imgui.FontSize()*islandSizeFactor, pos,
+		imgui.ColorU32Vec4(col), text,
 	)
 }
 
 // drawCardContent 展开态：顶部状态行 + 一排四个纸面方块按钮（墨色图标 + 文字标签）。
 func (isl *floatingIsland) drawCardContent(drawList *imgui.DrawList, l islandLayout, state ScriptState, label string) {
-	textSz := measureLabelSize(label)
+	textSz := measureIslandText(label)
 	dotD := float32(14) * l.scale
 	gap := float32(8) * l.scale
 	groupW := dotD + gap + textSz.X
@@ -275,9 +319,10 @@ func (isl *floatingIsland) drawCardContent(drawList *imgui.DrawList, l islandLay
 	rowY := l.y + 44*l.scale
 	dotX := l.x + (l.w-groupW)/2 + dotD/2
 	drawList.AddCircleFilled(imgui.Vec2{X: dotX, Y: rowY}, dotD/2, imgui.ColorU32Vec4(islandStateColor(state)))
-	drawList.AddTextVec2V(
+	drawIslandText(
+		drawList,
 		imgui.Vec2{X: dotX + dotD/2 + gap, Y: rowY - textSz.Y/2},
-		imgui.ColorU32Vec4(islandText),
+		islandText,
 		label,
 	)
 
@@ -297,36 +342,62 @@ func (isl *floatingIsland) drawCardContent(drawList *imgui.DrawList, l islandLay
 		drawIslandIcon(drawList, b.pos, half, b.icon, state, b.enabled)
 
 		// 图标下文字标签（解决纯图标新用户不可发现的痛点）。
-		labSz := measureLabelSize(b.label)
+		labSz := measureIslandText(b.label)
 		labCol := islandSubText
 		if !b.enabled {
 			labCol.W *= 0.35
 		}
-		drawList.AddTextVec2V(
+		drawIslandText(
+			drawList,
 			imgui.Vec2{X: b.pos.X - labSz.X/2, Y: pMax.Y + 8*l.scale},
-			imgui.ColorU32Vec4(labCol),
+			labCol,
 			b.label,
 		)
 	}
 }
 
-// handleInput 命中检测：收起点胶囊展开；展开点按钮（热区 88×88 方块）执行并收起；
-// 再点卡片空白处或卡片外收起。禁用的按钮（空闲时的暂停）不响应。
+// islandDragThreshold 按住胶囊位移超过该像素数即判定为拖动（否则松手视为点按展开）。
+const islandDragThreshold = float32(12)
+
+// handleInput 命中检测：收起态按住胶囊可拖动（松手持久化位置；未越过拖动阈值
+// 视为点按展开）；展开态点按钮（热区 88×88 方块）执行并收起，再点卡片空白处或
+// 卡片外任意处收起。禁用的按钮（空闲时的暂停）不响应。
 func (isl *floatingIsland) handleInput(l islandLayout, shell *Shell) {
-	if !imgui.IsMouseReleased(imgui.MouseButtonLeft) {
-		return
-	}
 	// 动画进行中不响应，避免展开/收起过程中的误触。
 	if isl.ExpandAnim > 0.05 && isl.ExpandAnim < 0.95 {
 		return
 	}
-
 	m := imgui.MousePos()
+
 	if !isl.IsExpanded {
-		if pointInLayout(m, l) {
-			isl.IsExpanded = true
-			isl.expandedAt = time.Now()
+		// 按下命中胶囊：开始跟踪，松手时按位移区分点按/拖动。
+		if imgui.IsMouseClickedBoolV(imgui.MouseButtonLeft, false) && pointInLayout(m, l) {
+			isl.dragging = true
+			isl.dragMoved = false
+			isl.dragOffX = m.X - l.x
+			isl.dragOffY = m.Y - l.y
 		}
+		if isl.dragging && imgui.IsMouseDown(imgui.MouseButtonLeft) &&
+			(isl.dragMoved || imgui.IsMouseDraggingV(imgui.MouseButtonLeft, islandDragThreshold)) {
+			isl.dragMoved = true
+			isl.posX, isl.posY = clampIslandPos(
+				m.X-isl.dragOffX, m.Y-isl.dragOffY,
+				l.w, l.h, float32(isl.ScreenWidth), float32(isl.ScreenHeight))
+			isl.customPos = true
+		}
+		if isl.dragging && imgui.IsMouseReleased(imgui.MouseButtonLeft) {
+			if isl.dragMoved {
+				isl.persistPos(shell)
+			} else if pointInLayout(m, l) {
+				isl.IsExpanded = true
+				isl.expandedAt = time.Now()
+			}
+			isl.dragging = false
+		}
+		return
+	}
+
+	if !imgui.IsMouseReleased(imgui.MouseButtonLeft) {
 		return
 	}
 
@@ -354,6 +425,22 @@ func (isl *floatingIsland) handleInput(l islandLayout, shell *Shell) {
 
 	// 展开后再点灵动岛（卡片空白处）或卡片外任意处：收起。
 	isl.IsExpanded = false
+}
+
+// persistPos 拖动结束后把位置写进 Store 并立即落盘（ConfigPath 非空时），
+// 保证不启动脚本直接退出也不丢位置。
+func (isl *floatingIsland) persistPos(shell *Shell) {
+	st := shell.Store()
+	if st == nil {
+		return
+	}
+	st.SetFloat(islandPosXKey, float64(isl.posX))
+	st.SetFloat(islandPosYKey, float64(isl.posY))
+	if p := shell.ConfigPath(); p != "" {
+		if err := st.SaveConfig(p); err != nil {
+			LogErrorf("[UI] save island pos: %v", err)
+		}
+	}
 }
 
 func pointInLayout(m imgui.Vec2, l islandLayout) bool {
